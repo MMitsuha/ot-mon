@@ -1,6 +1,6 @@
 FROM rust:slim AS builder
 
-RUN apt-get update && apt-get install -y musl-tools pkg-config libssl-dev perl make && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y curl musl-tools pkg-config libssl-dev perl make && rm -rf /var/lib/apt/lists/*
 RUN rustup target add x86_64-unknown-linux-musl
 
 # 交叉编译 OpenSSL for musl
