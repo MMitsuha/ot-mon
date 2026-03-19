@@ -17,7 +17,11 @@ pub fn format_relogin_summary(s: &ReloginSummary) -> String {
         s.device_name,
         s.replaced_count,
         s.total_lines,
-        if s.config_uploaded { "成功" } else { "失败" },
+        if s.config_uploaded {
+            "成功"
+        } else {
+            "失败"
+        },
     );
 
     if s.failed_logins > 0 {
@@ -51,7 +55,11 @@ pub fn format_daily_complete(summaries: &[ReloginSummary]) -> String {
         "📋 <b>每日重拨完成</b>\n\
          总替换: {total_replaced}/{total_lines} 条线路\n\
          状态: {}",
-        if all_ok { "全部成功 ✅" } else { "部分失败 ❌" },
+        if all_ok {
+            "全部成功 ✅"
+        } else {
+            "部分失败 ❌"
+        },
     );
 
     for s in summaries {

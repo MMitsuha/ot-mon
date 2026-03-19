@@ -29,14 +29,19 @@ impl SrunClient {
             parent_interface: self.parent_interface.clone(),
             mac_address: mac_address.to_string(),
         };
-        let resp: SrunApiResponse<SrunLoginData> =
-            self.client.post(&url).json(&req).send().await?.json().await?;
+        let resp: SrunApiResponse<SrunLoginData> = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await?
+            .json()
+            .await?;
         if resp.success {
-            resp.data
-                .ok_or_else(|| OtMonError::SrunLoginFailed {
-                    mac: mac_address.to_string(),
-                    message: "响应成功但无数据".to_string(),
-                })
+            resp.data.ok_or_else(|| OtMonError::SrunLoginFailed {
+                mac: mac_address.to_string(),
+                message: "响应成功但无数据".to_string(),
+            })
         } else {
             Err(OtMonError::SrunLoginFailed {
                 mac: mac_address.to_string(),
@@ -52,8 +57,14 @@ impl SrunClient {
             parent_interface: self.parent_interface.clone(),
             count,
         };
-        let resp: SrunApiResponse<Vec<SrunRandomLoginResult>> =
-            self.client.post(&url).json(&req).send().await?.json().await?;
+        let resp: SrunApiResponse<Vec<SrunRandomLoginResult>> = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await?
+            .json()
+            .await?;
         if resp.success {
             Ok(resp.data.unwrap_or_default())
         } else {
@@ -116,8 +127,14 @@ impl SrunClient {
         let req = SrunLogoutRequest {
             parent_interface: self.parent_interface.clone(),
         };
-        let resp: SrunApiResponse<()> =
-            self.client.post(&url).json(&req).send().await?.json().await?;
+        let resp: SrunApiResponse<()> = self
+            .client
+            .post(&url)
+            .json(&req)
+            .send()
+            .await?
+            .json()
+            .await?;
         if !resp.success {
             tracing::warn!(
                 error = resp.error.as_deref().unwrap_or(""),

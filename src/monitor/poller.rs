@@ -109,14 +109,9 @@ pub async fn run_poller(
                     .await;
 
                 // 批量重拨
-                let summary = relogin::relogin_disconnected(
-                    device,
-                    &status,
-                    &device_client,
-                    &srun,
-                    &mongo,
-                )
-                .await;
+                let summary =
+                    relogin::relogin_disconnected(device, &status, &device_client, &srun, &mongo)
+                        .await;
 
                 let _ = notify_tx
                     .send(NotifyMessage::ReloginComplete { summary })

@@ -189,7 +189,9 @@ mod srun_result_format {
     {
         match ResultHelper::deserialize(deserializer)? {
             ResultHelper::Ok { Ok: data } => std::result::Result::Ok(std::result::Result::Ok(data)),
-            ResultHelper::Err { Err: msg } => std::result::Result::Ok(std::result::Result::Err(msg)),
+            ResultHelper::Err { Err: msg } => {
+                std::result::Result::Ok(std::result::Result::Err(msg))
+            }
         }
     }
 }

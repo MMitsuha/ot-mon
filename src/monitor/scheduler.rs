@@ -59,13 +59,7 @@ pub async fn run_daily_scheduler(
 
                 let mut summaries = Vec::new();
                 for device in &config.devices {
-                    let summary = relogin::relogin_all(
-                        device,
-                        &device_client,
-                        &srun,
-                        &mongo,
-                    )
-                    .await;
+                    let summary = relogin::relogin_all(device, &device_client, &srun, &mongo).await;
                     tracing::info!(
                         device = %summary.device_name,
                         replaced = summary.replaced_count,
