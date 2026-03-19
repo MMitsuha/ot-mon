@@ -7,7 +7,7 @@ RUN rustup target add x86_64-unknown-linux-musl
 ENV OPENSSL_VERSION=3.4.1
 RUN curl -fsSL https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz | tar xz \
     && cd openssl-${OPENSSL_VERSION} \
-    && CC=musl-gcc ./Configure no-shared no-async linux-x86_64 --prefix=/usr/local/musl --openssldir=/usr/local/musl/ssl \
+    && CC="musl-gcc -idirafter /usr/include/ -idirafter /usr/include/x86_64-linux-gnu/" ./Configure no-shared no-async linux-x86_64 --prefix=/usr/local/musl --openssldir=/usr/local/musl/ssl \
     && make -j$(nproc) \
     && make install_sw \
     && cd .. && rm -rf openssl-${OPENSSL_VERSION}
