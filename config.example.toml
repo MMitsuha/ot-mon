@@ -1,0 +1,24 @@
+[monitor]
+poll_interval_secs = 60         # 轮询间隔（秒）
+daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)
+log_level = "info"
+
+[srun]
+url = "http://192.168.1.100:3000"   # srun-auto-dial 地址
+parent_interface = "eth0"            # PPPoE 父接口名（所有设备共用）
+
+[mongodb]
+uri = "mongodb://localhost:27017"
+database = "ot_mon"
+
+[telegram]
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+chat_id = "1234567890"
+
+[[devices]]
+name = "设备1"
+ip = "192.168.1.101"
+
+[[devices]]
+name = "设备2"
+ip = "192.168.1.102"
