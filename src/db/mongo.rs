@@ -72,6 +72,7 @@ impl MongoStore {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub async fn get_latest_status(&self, device_ip: &str) -> Result<Option<PppoeStatusDoc>> {
         let doc = self
             .status_collection()

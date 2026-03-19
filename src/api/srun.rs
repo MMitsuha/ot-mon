@@ -22,6 +22,7 @@ impl SrunClient {
     }
 
     /// 使用随机账号登录 macvlan
+    #[allow(dead_code)]
     pub async fn login_macvlan(&self, mac_address: &str) -> Result<SrunLoginData> {
         let url = format!("{}/api/login/macvlan", self.base_url);
         let req = SrunLoginRequest {
@@ -109,6 +110,7 @@ impl SrunClient {
     }
 
     /// 登出 macvlan
+    #[allow(dead_code)]
     pub async fn logout_macvlan(&self) -> Result<()> {
         let url = format!("{}/api/logout/macvlan", self.base_url);
         let req = SrunLogoutRequest {

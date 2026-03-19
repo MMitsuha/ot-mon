@@ -127,12 +127,14 @@ impl DialStatus {
 // ---- Srun API ----
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 pub struct SrunLoginRequest {
     pub parent_interface: String,
     pub mac_address: String,
 }
 
 #[derive(Debug, Serialize)]
+#[allow(dead_code)]
 pub struct SrunLogoutRequest {
     pub parent_interface: String,
 }
