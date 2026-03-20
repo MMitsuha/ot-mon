@@ -76,14 +76,15 @@ pub fn format_daily_complete(summaries: &[ReloginSummary]) -> String {
     msg
 }
 
-pub fn format_status_report(statuses: &[(String, PppoeStatusResponse)]) -> String {
-    let mut msg = "📊 <b>PPPoE 状态总览</b>\n".to_string();
+pub fn format_status_report(statuses: &[(String, PppoeStatusResponse)]) -> Vec<String> {
+    let mut reports = Vec::new();
+    reports.push("📊 <b>PPPoE 状态总览</b>".to_string());
 
     for (device_name, status) in statuses {
-        msg.push_str(&format!(
+        let mut msg = format!(
             "\n📡 <b>{device_name}</b> (在线: {}/{})\n",
             status.connectedline, status.totalline
-        ));
+        );
         for line in &status.multidial {
             let icon = if line.is_connected() { "🟢" } else { "🔴" };
             if line.is_connected() {
@@ -102,9 +103,10 @@ pub fn format_status_report(statuses: &[(String, PppoeStatusResponse)]) -> Strin
                 ));
             }
         }
+        reports.push(msg);
     }
 
-    msg
+    reports
 }
 
 pub fn format_error(context: &str, error: &str) -> String {

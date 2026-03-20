@@ -166,11 +166,13 @@ async fn handle_status(bot: &Bot, chat: ChatId, state: &BotState) {
         }
     }
     if !statuses.is_empty() {
-        let text = messages::format_status_report(&statuses);
-        let _ = bot
-            .send_message(chat, text)
-            .parse_mode(ParseMode::Html)
-            .await;
+        let reports = messages::format_status_report(&statuses);
+        for report in reports {
+            let _ = bot
+                .send_message(chat, report)
+                .parse_mode(ParseMode::Html)
+                .await;
+        }
     }
 }
 
