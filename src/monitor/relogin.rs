@@ -25,6 +25,12 @@ pub async fn relogin_disconnected(
     srun: &SrunClient,
     mongo: &MongoStore,
 ) -> ReloginSummary {
+    if device.dry {
+        panic!(
+            "设备 {} 配置为 dry 模式，不能执行 relogin_disconnected",
+            device.name
+        );
+    }
     let disconnected_count = status
         .multidial
         .iter()
@@ -136,6 +142,9 @@ pub async fn relogin_all(
     srun: &SrunClient,
     mongo: &MongoStore,
 ) -> ReloginSummary {
+    if device.dry {
+        panic!("设备 {} 配置为 dry 模式，不能执行 relogin_all", device.name);
+    }
     // 获取当前状态
     let status = match device_client.get_pppoe_status(&device.ip).await {
         Ok(s) => s,

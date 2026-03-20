@@ -67,6 +67,12 @@ pub struct TelegramConfig {
 pub struct DeviceConfig {
     pub name: String,
     pub ip: String,
+    #[serde(default = "default_dry")]
+    pub dry: bool,
+}
+
+fn default_dry() -> bool {
+    false
 }
 
 fn default_poll_interval() -> u64 {

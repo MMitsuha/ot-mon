@@ -177,12 +177,17 @@ async fn handle_status(bot: &Bot, chat: ChatId, state: &BotState) {
 }
 
 async fn handle_relogin(bot: &Bot, chat: ChatId, state: &BotState, device_name: &str) {
-    let device = state.config.devices.iter().find(|d| d.name == device_name);
+    let device = state
+        .config
+        .devices
+        .iter()
+        .find(|d| d.name == device_name && !d.dry);
     let Some(device) = device else {
         let names: Vec<_> = state
             .config
             .devices
             .iter()
+            .filter(|d| !d.dry)
             .map(|d| d.name.as_str())
             .collect();
         let _ = bot
@@ -229,6 +234,9 @@ async fn handle_relogin_all(bot: &Bot, chat: ChatId, state: &BotState) {
 
     let mut summaries = Vec::new();
     for device in &state.config.devices {
+        if device.dry {
+            continue;
+        }
         let summary =
             relogin::relogin_all(device, &state.device_client, &state.srun, &state.mongo).await;
         summaries.push(summary);

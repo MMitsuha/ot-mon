@@ -85,7 +85,7 @@ pub async fn run_poller(
                 .filter(|d| !d.is_connected() && !d.macaddr.is_empty())
                 .count();
 
-            if disconnected_count > 0 {
+            if disconnected_count > 0 && !device.dry {
                 tracing::warn!(
                     device = %device.name,
                     count = disconnected_count,
