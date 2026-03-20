@@ -299,7 +299,9 @@ impl NetworkLineConfig {
             vtepnetmask: String::new(),
             vni: 0,
             vport: 0,
-            modifiedtime: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            modifiedtime: new_mac
+                .map(|_| chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
+                .unwrap_or_else(|| d.modifiedtime.clone()),
         }
     }
 
