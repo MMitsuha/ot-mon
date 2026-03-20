@@ -85,9 +85,13 @@ pub fn format_status_report(statuses: &[(String, PppoeStatusResponse)]) -> Vec<S
             "\n📡 <b>{device_name}</b> (在线: {}/{})\n",
             status.connectedline, status.totalline
         );
+        let mut total_upspeed = 0;
+        let mut total_downspeed = 0;
         for line in &status.multidial {
             let icon = if line.is_connected() { "🟢" } else { "🔴" };
             if line.is_connected() {
+                total_upspeed += line.upspeed;
+                total_downspeed += line.downspeed;
                 msg.push_str(&format!(
                     "  {icon} {}: {} @ {} (↓{:.1}MB/s ↑{:.1}MB/s)\n",
                     line.tag,
@@ -103,6 +107,11 @@ pub fn format_status_report(statuses: &[(String, PppoeStatusResponse)]) -> Vec<S
                 ));
             }
         }
+        msg.push_str(&format!(
+            "\n📊 总速度: ↓{:.1}MB/s ↑{:.1}MB/s",
+            total_downspeed as f64 / 1_048_576.0,
+            total_upspeed as f64 / 1_048_576.0,
+        ));
         reports.push(msg);
     }
 
