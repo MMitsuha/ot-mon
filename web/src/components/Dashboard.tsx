@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import SpeedChart from "./SpeedChart";
 import StatCard from "./StatCard";
 import { DeviceInfo, SpeedDataPoint } from "@/lib/types";
@@ -53,6 +53,16 @@ export default function Dashboard() {
 
   const latest = data.length > 0 ? data[data.length - 1] : null;
 
+  const { avgDown, avgUp } = useMemo(() => {
+    if (data.length === 0) return { avgDown: 0, avgUp: 0 };
+    const sumDown = data.reduce((s, d) => s + d.totalDownSpeed, 0);
+    const sumUp = data.reduce((s, d) => s + d.totalUpSpeed, 0);
+    return {
+      avgDown: sumDown / data.length,
+      avgUp: sumUp / data.length,
+    };
+  }, [data]);
+
   return (
     <div className="space-y-6">
       {/* Controls */}
@@ -60,7 +70,12 @@ export default function Dashboard() {
         <select
           value={selectedDevice}
           onChange={(e) => setSelectedDevice(e.target.value)}
-          className="rounded-lg border border-[#333] bg-[#111] px-3 py-2 text-sm text-[#ededed] outline-none focus:border-[#555]"
+          className="appearance-none rounded-lg border border-[#333] bg-[#111] px-4 py-2 pr-8 text-sm text-[#ededed] outline-none transition-all duration-200 focus:border-[#555] focus:ring-1 focus:ring-[#555] hover:border-[#444] cursor-pointer"
+          style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E")`,
+            backgroundRepeat: "no-repeat",
+            backgroundPosition: "right 10px center",
+          }}
         >
           {devices.map((d) => (
             <option key={d.device_ip} value={d.device_ip}>
@@ -74,10 +89,10 @@ export default function Dashboard() {
             <button
               key={r.hours}
               onClick={() => setHours(r.hours)}
-              className={`px-3 py-2 text-sm transition-colors ${
+              className={`px-4 py-2 text-sm transition-all duration-200 ${
                 hours === r.hours
                   ? "bg-[#ededed] text-[#0a0a0a]"
-                  : "bg-[#111] text-[#888] hover:text-[#ededed]"
+                  : "bg-[#111] text-[#888] hover:text-[#ededed] hover:bg-[#1a1a1a]"
               }`}
             >
               {r.label}
@@ -95,12 +110,12 @@ export default function Dashboard() {
         <StatCard
           label="Download"
           value={latest ? formatSpeed(latest.totalDownSpeed) : "-"}
-          sub="Current total"
+          sub={data.length > 0 ? `Avg ${formatSpeed(avgDown)}` : "Current total"}
         />
         <StatCard
           label="Upload"
           value={latest ? formatSpeed(latest.totalUpSpeed) : "-"}
-          sub="Current total"
+          sub={data.length > 0 ? `Avg ${formatSpeed(avgUp)}` : "Current total"}
         />
         <StatCard
           label="Lines"
@@ -131,7 +146,7 @@ export default function Dashboard() {
             </span>
           </div>
         </div>
-        <SpeedChart data={data} />
+        <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} />
       </div>
     </div>
   );

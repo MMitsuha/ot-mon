@@ -8,11 +8,18 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  ReferenceLine,
 } from "recharts";
 import { SpeedDataPoint } from "@/lib/types";
 import { formatSpeed, formatTime } from "@/lib/format";
 
-export default function SpeedChart({ data }: { data: SpeedDataPoint[] }) {
+interface SpeedChartProps {
+  data: SpeedDataPoint[];
+  avgDown: number;
+  avgUp: number;
+}
+
+export default function SpeedChart({ data, avgDown, avgUp }: SpeedChartProps) {
   if (data.length === 0) {
     return (
       <div className="flex items-center justify-center h-80 text-[#888]">
@@ -61,6 +68,34 @@ export default function SpeedChart({ data }: { data: SpeedDataPoint[] }) {
             name === "totalDownSpeed" ? "Download" : "Upload",
           ]}
         />
+        {avgDown > 0 && (
+          <ReferenceLine
+            y={avgDown}
+            stroke="#0ea5e9"
+            strokeDasharray="6 4"
+            strokeOpacity={0.5}
+            label={{
+              value: `Avg ↓ ${formatSpeed(avgDown)}`,
+              fill: "#0ea5e9",
+              fontSize: 11,
+              position: "insideTopRight",
+            }}
+          />
+        )}
+        {avgUp > 0 && (
+          <ReferenceLine
+            y={avgUp}
+            stroke="#8b5cf6"
+            strokeDasharray="6 4"
+            strokeOpacity={0.5}
+            label={{
+              value: `Avg ↑ ${formatSpeed(avgUp)}`,
+              fill: "#8b5cf6",
+              fontSize: 11,
+              position: "insideBottomRight",
+            }}
+          />
+        )}
         <Area
           type="monotone"
           dataKey="totalDownSpeed"
