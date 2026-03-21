@@ -121,7 +121,10 @@ pub async fn run_poller(
                     .map(|d| {
                         let key = (device.ip.clone(), d.tag.clone());
                         let cnt = counters.get(&key).copied().unwrap_or(0);
-                        format!("  {} ({}) [{}]: {} (连续断线 {}次)", d.tag, d.macaddr, d.ipaddr, d.status, cnt)
+                        format!(
+                            "  {} ({}) [{}]: {} (连续断线 {}次)",
+                            d.tag, d.macaddr, d.ipaddr, d.status, cnt
+                        )
                     })
                     .collect::<Vec<_>>()
                     .join("\n");
