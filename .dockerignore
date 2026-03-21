@@ -5,3 +5,4 @@ config.toml
 *.md
 .dockerignore
 .gitignore
+web/
