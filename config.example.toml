@@ -2,6 +2,7 @@
 poll_interval_secs = 60         # 轮询间隔（秒）
 daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)
 log_level = "info"
+disconnect_threshold = 3        # 连续检测到断线多少次后才触发重拨（防止网络波动）
 
 [srun]
 url = "http://192.168.1.100:3000"   # srun-auto-dial 地址

@@ -6,9 +6,13 @@ use crate::db::mongo::MongoStore;
 use crate::monitor::relogin;
 use crate::notify::telegram::NotifyMessage;
 use bson::DateTime;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_util::sync::CancellationToken;
+
+/// Key: (device_ip, line_tag)
+type DisconnectCounters = HashMap<(String, String), u32>;
 
 pub async fn run_poller(
     config: Arc<Config>,
@@ -19,10 +23,14 @@ pub async fn run_poller(
     cancel: CancellationToken,
 ) {
     let interval = std::time::Duration::from_secs(config.monitor.poll_interval_secs);
+    let threshold = config.monitor.disconnect_threshold;
     tracing::info!(
         interval_secs = config.monitor.poll_interval_secs,
+        disconnect_threshold = threshold,
         "状态轮询启动"
     );
+
+    let mut counters: DisconnectCounters = HashMap::new();
 
     loop {
         tokio::select! {
@@ -78,32 +86,50 @@ pub async fn run_poller(
                 tracing::error!(device = %device.name, error = %e, "保存状态到 MongoDB 失败");
             }
 
-            // 检测断线
-            let disconnected_count = status
+            // 更新连续断线计数器
+            for d in &status.multidial {
+                let key = (device.ip.clone(), d.tag.clone());
+                if !d.is_connected() && !d.macaddr.is_empty() {
+                    *counters.entry(key).or_insert(0) += 1;
+                } else {
+                    counters.remove(&key);
+                }
+            }
+
+            // 检测达到阈值的断线线路
+            let lines_over_threshold: usize = status
                 .multidial
                 .iter()
-                .filter(|d| !d.is_connected() && !d.macaddr.is_empty())
+                .filter(|d| {
+                    let key = (device.ip.clone(), d.tag.clone());
+                    counters.get(&key).copied().unwrap_or(0) >= threshold
+                })
                 .count();
 
-            if disconnected_count > 0 && !device.dry {
+            if lines_over_threshold > 0 && !device.dry {
                 tracing::warn!(
                     device = %device.name,
-                    count = disconnected_count,
-                    "检测到断线，开始批量重拨"
+                    count = lines_over_threshold,
+                    threshold,
+                    "断线次数达到阈值，开始批量重拨"
                 );
 
                 let detail = status
                     .multidial
                     .iter()
                     .filter(|d| !d.is_connected() && !d.macaddr.is_empty())
-                    .map(|d| format!("  {} ({}) [{}]: {}", d.tag, d.macaddr, d.ipaddr, d.status))
+                    .map(|d| {
+                        let key = (device.ip.clone(), d.tag.clone());
+                        let cnt = counters.get(&key).copied().unwrap_or(0);
+                        format!("  {} ({}) [{}]: {} (连续断线 {}次)", d.tag, d.macaddr, d.ipaddr, d.status, cnt)
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
 
                 let _ = notify_tx
                     .send(NotifyMessage::LineDisconnected {
                         device_name: device.name.clone(),
-                        line_count: disconnected_count,
+                        line_count: lines_over_threshold,
                         details: detail,
                     })
                     .await;
@@ -112,6 +138,9 @@ pub async fn run_poller(
                 let summary =
                     relogin::relogin_disconnected(device, &status, &device_client, &srun, &mongo)
                         .await;
+
+                // 重拨后清除该设备的计数器
+                counters.retain(|k, _| k.0 != device.ip);
 
                 let _ = notify_tx
                     .send(NotifyMessage::ReloginComplete { summary })

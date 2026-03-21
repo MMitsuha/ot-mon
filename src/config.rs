@@ -22,6 +22,9 @@ pub struct MonitorConfig {
     pub daily_relogin_time: String,
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    /// 连续检测到断线多少次后才触发重拨（防止网络波动误触发）
+    #[serde(default = "default_disconnect_threshold")]
+    pub disconnect_threshold: u32,
 }
 
 impl Default for MonitorConfig {
@@ -30,6 +33,7 @@ impl Default for MonitorConfig {
             poll_interval_secs: default_poll_interval(),
             daily_relogin_time: default_daily_time(),
             log_level: default_log_level(),
+            disconnect_threshold: default_disconnect_threshold(),
         }
     }
 }
@@ -73,6 +77,10 @@ pub struct DeviceConfig {
 
 fn default_dry() -> bool {
     false
+}
+
+fn default_disconnect_threshold() -> u32 {
+    1
 }
 
 fn default_poll_interval() -> u64 {
