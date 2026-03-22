@@ -151,7 +151,9 @@ export default function Dashboard() {
       {/* Chart */}
       <div
         ref={chartRef}
-        className="rounded-xl border border-[#222] bg-[#111] p-5 transition-all duration-300"
+        className={`rounded-xl border border-[#222] bg-[#111] p-5 transition-all duration-300 ${
+          isFullscreen ? "flex flex-col h-screen w-screen" : ""
+        }`}
       >
         <div className="mb-4 flex items-center gap-4">
           <h2 className="text-lg font-semibold text-[#ededed]">
@@ -198,7 +200,9 @@ export default function Dashboard() {
             )}
           </button>
         </div>
-        <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} />
+        <div className={isFullscreen ? "flex-1 min-h-0" : ""}>
+          <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} fullscreen={isFullscreen} />
+        </div>
       </div>
     </div>
   );
