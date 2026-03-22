@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -11,26 +12,100 @@ import {
   ReferenceLine,
 } from "recharts";
 import { SpeedDataPoint } from "@/lib/types";
-import { formatSpeed, formatTime } from "@/lib/format";
+import { formatSpeed } from "@/lib/format";
 
 interface SpeedChartProps {
   data: SpeedDataPoint[];
   avgDown: number;
   avgUp: number;
+  hours: number;
 }
 
-export default function SpeedChart({ data, avgDown, avgUp }: SpeedChartProps) {
+function formatTickTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function formatTooltipTime(ts: number): string {
+  const d = new Date(ts);
+  return d.toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function generateTicks(start: number, end: number, count: number): number[] {
+  const step = (end - start) / count;
+  const ticks: number[] = [];
+  for (let i = 0; i <= count; i++) {
+    ticks.push(Math.round(start + step * i));
+  }
+  return ticks;
+}
+
+function getTickCount(hours: number): number {
+  if (hours <= 1) return 6;
+  if (hours <= 6) return 6;
+  if (hours <= 24) return 8;
+  return 7;
+}
+
+export default function SpeedChart({
+  data,
+  avgDown,
+  avgUp,
+  hours,
+}: SpeedChartProps) {
+  const chartData = useMemo(
+    () =>
+      data.map((d) => ({
+        ...d,
+        ts: new Date(d.timestamp).getTime(),
+      })),
+    [data]
+  );
+
+  const { domainMin, domainMax, ticks } = useMemo(() => {
+    if (chartData.length === 0) {
+      return {
+        domainMin: 0,
+        domainMax: 1,
+        ticks: [] as number[],
+      };
+    }
+    const min = chartData[0].ts;
+    const max = chartData[chartData.length - 1].ts;
+    return {
+      domainMin: min,
+      domainMax: max,
+      ticks: generateTicks(min, max, getTickCount(hours)),
+    };
+  }, [chartData, hours]);
+
   if (data.length === 0) {
     return (
-      <div className="flex items-center justify-center h-80 text-[#888]">
-        No data available
+      <div className="flex flex-col items-center justify-center h-80 gap-3">
+        <div className="flex items-end gap-1">
+          {Array.from({ length: 24 }).map((_, i) => (
+            <div
+              key={i}
+              className="w-1.5 rounded-full bg-[#222]"
+              style={{ height: `${20 + Math.sin(i * 0.5) * 16 + Math.sin(i * 1.3) * 8}px` }}
+            />
+          ))}
+        </div>
+        <p className="text-sm text-[#555]">Waiting for data...</p>
       </div>
     );
   }
 
   return (
     <ResponsiveContainer width="100%" height={320}>
-      <AreaChart data={data}>
+      <AreaChart data={chartData}>
         <defs>
           <linearGradient id="downGrad" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.3} />
@@ -41,13 +116,16 @@ export default function SpeedChart({ data, avgDown, avgUp }: SpeedChartProps) {
             <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
         <XAxis
-          dataKey="timestamp"
-          tickFormatter={formatTime}
+          dataKey="ts"
+          type="number"
+          scale="time"
+          domain={[domainMin, domainMax]}
+          ticks={ticks}
+          tickFormatter={formatTickTime}
           stroke="#555"
           tick={{ fill: "#888", fontSize: 12 }}
-          interval="preserveStartEnd"
         />
         <YAxis
           tickFormatter={formatSpeed}
@@ -62,7 +140,7 @@ export default function SpeedChart({ data, avgDown, avgUp }: SpeedChartProps) {
             borderRadius: 8,
             color: "#ededed",
           }}
-          labelFormatter={(label) => formatTime(String(label))}
+          labelFormatter={(label) => formatTooltipTime(Number(label))}
           formatter={(value, name) => [
             formatSpeed(Number(value)),
             name === "totalDownSpeed" ? "Download" : "Upload",

@@ -147,7 +147,7 @@ export default function Dashboard() {
             </span>
           </div>
         </div>
-        <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} />
+        <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} />
       </div>
     </div>
   );
