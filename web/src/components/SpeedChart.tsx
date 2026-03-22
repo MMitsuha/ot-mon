@@ -69,20 +69,43 @@ function getExpectedIntervalMs(hours: number): number {
   return 60 * 60_000;
 }
 
-function detectGaps(
-  chartData: { ts: number }[],
+interface ChartPoint {
+  ts: number;
+  totalDownSpeed: number | null;
+  totalUpSpeed: number | null;
+}
+
+function buildChartData(
+  data: SpeedDataPoint[],
   hours: number
-): Gap[] {
-  if (chartData.length < 2) return [];
+): { points: ChartPoint[]; gaps: Gap[] } {
+  if (data.length === 0) return { points: [], gaps: [] };
+
+  const raw = data.map((d) => ({
+    ts: new Date(d.timestamp).getTime(),
+    totalDownSpeed: d.totalDownSpeed as number | null,
+    totalUpSpeed: d.totalUpSpeed as number | null,
+  }));
+
   const threshold = getExpectedIntervalMs(hours) * 2.5;
   const gaps: Gap[] = [];
-  for (let i = 1; i < chartData.length; i++) {
-    const delta = chartData[i].ts - chartData[i - 1].ts;
+  const points: ChartPoint[] = [raw[0]];
+
+  for (let i = 1; i < raw.length; i++) {
+    const delta = raw[i].ts - raw[i - 1].ts;
     if (delta > threshold) {
-      gaps.push({ x1: chartData[i - 1].ts, x2: chartData[i].ts });
+      gaps.push({ x1: raw[i - 1].ts, x2: raw[i].ts });
+      // Insert a null point just after the gap starts to break the line
+      points.push({
+        ts: raw[i - 1].ts + 1,
+        totalDownSpeed: null,
+        totalUpSpeed: null,
+      });
     }
+    points.push(raw[i]);
   }
-  return gaps;
+
+  return { points, gaps };
 }
 
 export default function SpeedChart({
@@ -91,13 +114,9 @@ export default function SpeedChart({
   avgUp,
   hours,
 }: SpeedChartProps) {
-  const chartData = useMemo(
-    () =>
-      data.map((d) => ({
-        ...d,
-        ts: new Date(d.timestamp).getTime(),
-      })),
-    [data]
+  const { points: chartData, gaps } = useMemo(
+    () => buildChartData(data, hours),
+    [data, hours]
   );
 
   const { domainMin, domainMax, ticks } = useMemo(() => {
@@ -116,8 +135,6 @@ export default function SpeedChart({
       ticks: generateTicks(min, max, getTickCount(hours)),
     };
   }, [chartData, hours]);
-
-  const gaps = useMemo(() => detectGaps(chartData, hours), [chartData, hours]);
 
   if (data.length === 0) {
     return (
