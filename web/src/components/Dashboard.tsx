@@ -24,6 +24,7 @@ export default function Dashboard() {
     fetch("/api/devices")
       .then((r) => r.json())
       .then((d: DeviceInfo[]) => {
+        d.sort((a, b) => a.device_name.localeCompare(b.device_name));
         setDevices(d);
         if (d.length > 0 && !selectedDevice) {
           setSelectedDevice(d[0].device_ip);
