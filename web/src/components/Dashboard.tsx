@@ -5,7 +5,7 @@ import SpeedChart from "./SpeedChart";
 import UsageChart from "./UsageChart";
 import StatCard from "./StatCard";
 import { DeviceInfo, SpeedDataPoint, HardwareDataPoint } from "@/lib/types";
-import { formatSpeed, formatBytes, formatPercent } from "@/lib/format";
+import { formatSpeed, formatBytes, formatPercent, formatKbps } from "@/lib/format";
 
 const TIME_RANGES = [
   { label: "1H", hours: 1 },
@@ -85,15 +85,14 @@ export default function Dashboard() {
     return { avgDown: sumDown / data.length, avgUp: sumUp / data.length };
   }, [data]);
 
-  const { avgCpu, avgMem, avgDisk } = useMemo(() => {
-    if (hwData.length === 0) return { avgCpu: 0, avgMem: 0, avgDisk: 0 };
-    const sumCpu = hwData.reduce((s, d) => s + d.cpuUsage, 0);
-    const sumMem = hwData.reduce((s, d) => s + d.memUsedPercent, 0);
-    const sumDisk = hwData.reduce((s, d) => s + d.diskUsedPercent, 0);
+  const { avgCpu, avgMem, avgDisk, avgIoUtil } = useMemo(() => {
+    if (hwData.length === 0) return { avgCpu: 0, avgMem: 0, avgDisk: 0, avgIoUtil: 0 };
+    const n = hwData.length;
     return {
-      avgCpu: sumCpu / hwData.length,
-      avgMem: sumMem / hwData.length,
-      avgDisk: sumDisk / hwData.length,
+      avgCpu: hwData.reduce((s, d) => s + d.cpuUsage, 0) / n,
+      avgMem: hwData.reduce((s, d) => s + d.memUsedPercent, 0) / n,
+      avgDisk: hwData.reduce((s, d) => s + d.diskUsedPercent, 0) / n,
+      avgIoUtil: hwData.reduce((s, d) => s + d.ioMaxUtil, 0) / n,
     };
   }, [hwData]);
 
@@ -107,6 +106,10 @@ export default function Dashboard() {
   );
   const diskChartData = useMemo(
     () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.diskUsedPercent })),
+    [hwData]
+  );
+  const ioChartData = useMemo(
+    () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.ioMaxUtil })),
     [hwData]
   );
 
@@ -153,7 +156,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-7">
         <StatCard
           label="Download"
           value={latest ? formatSpeed(latest.totalDownSpeed) : "-"}
@@ -183,6 +186,11 @@ export default function Dashboard() {
           label="Disk"
           value={latestHw ? formatPercent(latestHw.diskUsedPercent) : "-"}
           sub={latestHw ? `${formatBytes(latestHw.diskUsed)} / ${formatBytes(latestHw.diskTotal)}` : undefined}
+        />
+        <StatCard
+          label="IO Util"
+          value={latestHw ? formatPercent(latestHw.ioMaxUtil) : "-"}
+          sub={latestHw ? `Peak R ${formatKbps(latestHw.ioPeakTotalReadKbs)} W ${formatKbps(latestHw.ioPeakTotalWriteKbs)}` : undefined}
         />
       </div>
 
@@ -280,6 +288,18 @@ export default function Dashboard() {
           <h2 className="text-sm font-semibold text-[#ededed]">Disk Usage</h2>
         </div>
         <UsageChart data={diskChartData} color="#ec4899" label="Disk" avg={avgDisk} hours={hours} />
+      </div>
+
+      {/* IO Chart */}
+      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#06b6d4" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M2 8h3l2-4 2 8 2-4h3" />
+            <line x1="1" y1="13" x2="15" y2="13" />
+          </svg>
+          <h2 className="text-sm font-semibold text-[#ededed]">IO Utilization</h2>
+        </div>
+        <UsageChart data={ioChartData} color="#06b6d4" label="IO" avg={avgIoUtil} hours={hours} />
       </div>
     </div>
   );

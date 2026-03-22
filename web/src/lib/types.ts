@@ -44,4 +44,10 @@ export interface HardwareDataPoint {
   diskUsedPercent: number;
   diskTotal: number;
   diskUsed: number;
+  ioMaxUtil: number;
+  ioTotalReadKbs: number;
+  ioTotalWriteKbs: number;
+  ioPeakMaxUtil: number;
+  ioPeakTotalReadKbs: number;
+  ioPeakTotalWriteKbs: number;
 }

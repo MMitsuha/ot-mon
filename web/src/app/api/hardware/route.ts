@@ -60,6 +60,75 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+          // io[0] = current, io[1] = peak hour
+          _ioDevices: {
+            $objectToArray: {
+              $ifNull: [{ $arrayElemAt: ["$io", 0] }, {}],
+            },
+          },
+          _ioPeakDevices: {
+            $objectToArray: {
+              $ifNull: [{ $arrayElemAt: ["$io", 1] }, {}],
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          ioMaxUtil: {
+            $max: {
+              $map: {
+                input: "$_ioDevices",
+                as: "d",
+                in: { $toDouble: { $ifNull: ["$$d.v.util", "0"] } },
+              },
+            },
+          },
+          ioTotalRead: {
+            $sum: {
+              $map: {
+                input: "$_ioDevices",
+                as: "d",
+                in: { $toDouble: { $ifNull: ["$$d.v.rkbs", "0"] } },
+              },
+            },
+          },
+          ioTotalWrite: {
+            $sum: {
+              $map: {
+                input: "$_ioDevices",
+                as: "d",
+                in: { $toDouble: { $ifNull: ["$$d.v.wkbs", "0"] } },
+              },
+            },
+          },
+          ioPeakMaxUtil: {
+            $max: {
+              $map: {
+                input: "$_ioPeakDevices",
+                as: "d",
+                in: { $toDouble: { $ifNull: ["$$d.v.util", "0"] } },
+              },
+            },
+          },
+          ioPeakTotalRead: {
+            $sum: {
+              $map: {
+                input: "$_ioPeakDevices",
+                as: "d",
+                in: { $toDouble: { $ifNull: ["$$d.v.rkbs", "0"] } },
+              },
+            },
+          },
+          ioPeakTotalWrite: {
+            $sum: {
+              $map: {
+                input: "$_ioPeakDevices",
+                as: "d",
+                in: { $toDouble: { $ifNull: ["$$d.v.wkbs", "0"] } },
+              },
+            },
+          },
         },
       },
       {
@@ -76,6 +145,12 @@ export async function GET(request: NextRequest) {
           memFree: { $avg: "$memFree" },
           diskTotal: { $last: "$diskTotal" },
           diskUsed: { $last: "$diskUsed" },
+          ioMaxUtil: { $avg: "$ioMaxUtil" },
+          ioTotalRead: { $avg: "$ioTotalRead" },
+          ioTotalWrite: { $avg: "$ioTotalWrite" },
+          ioPeakMaxUtil: { $last: "$ioPeakMaxUtil" },
+          ioPeakTotalRead: { $last: "$ioPeakTotalRead" },
+          ioPeakTotalWrite: { $last: "$ioPeakTotalWrite" },
         },
       },
       { $sort: { _id: 1 } },
@@ -126,6 +201,18 @@ export async function GET(request: NextRequest) {
               },
               1,
             ],
+          },
+          ioMaxUtil: { $round: [{ $ifNull: ["$ioMaxUtil", 0] }, 1] },
+          ioTotalReadKbs: { $round: [{ $ifNull: ["$ioTotalRead", 0] }, 0] },
+          ioTotalWriteKbs: { $round: [{ $ifNull: ["$ioTotalWrite", 0] }, 0] },
+          ioPeakMaxUtil: {
+            $round: [{ $ifNull: ["$ioPeakMaxUtil", 0] }, 1],
+          },
+          ioPeakTotalReadKbs: {
+            $round: [{ $ifNull: ["$ioPeakTotalRead", 0] }, 0],
+          },
+          ioPeakTotalWriteKbs: {
+            $round: [{ $ifNull: ["$ioPeakTotalWrite", 0] }, 0],
           },
         },
       },

@@ -19,6 +19,16 @@ export function formatBytes(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
+export function formatKbps(kbps: number): string {
+  if (kbps >= 1_048_576) {
+    return `${(kbps / 1_048_576).toFixed(1)} GB/s`;
+  }
+  if (kbps >= 1024) {
+    return `${(kbps / 1024).toFixed(1)} MB/s`;
+  }
+  return `${kbps.toFixed(0)} KB/s`;
+}
+
 export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
