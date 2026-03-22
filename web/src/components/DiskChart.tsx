@@ -181,21 +181,21 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
   return (
     <div>
       {/* Header: SN + type badge + capacity bar */}
-      <div className="mb-3 flex items-center gap-3">
+      <div className="mb-3 flex items-center gap-3 flex-nowrap min-w-0">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <rect x="1" y="4" width="14" height="8" rx="2" />
           <line x1="4" y1="7" x2="4" y2="9" />
           <line x1="7" y1="7" x2="7" y2="9" />
         </svg>
-        <span className="text-sm font-semibold text-[#ededed] font-mono">{sn}</span>
+        <span className="text-sm font-semibold text-[#ededed] font-mono truncate min-w-0">{sn}</span>
         {diskType && (
           <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-[#222] text-[#888] uppercase">
             {diskType}
           </span>
         )}
         {/* Capacity bar */}
-        <div className="ml-auto flex items-center gap-2">
-          <span className="text-xs text-[#666]">
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <span className="text-xs text-[#666] whitespace-nowrap">
             {formatBytes(latestUsed)} / {formatBytes(totalCapacity)}
           </span>
           <div className="h-2 w-24 rounded-full bg-[#222] overflow-hidden">
