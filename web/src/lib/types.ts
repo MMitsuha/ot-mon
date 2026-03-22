@@ -34,3 +34,14 @@ export interface DeviceInfo {
   device_ip: string;
   device_name: string;
 }
+
+export interface HardwareDataPoint {
+  timestamp: string;
+  cpuUsage: number;
+  memUsedPercent: number;
+  memTotal: number;
+  memUsed: number;
+  diskUsedPercent: number;
+  diskTotal: number;
+  diskUsed: number;
+}

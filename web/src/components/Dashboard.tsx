@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import SpeedChart from "./SpeedChart";
+import UsageChart from "./UsageChart";
 import StatCard from "./StatCard";
-import { DeviceInfo, SpeedDataPoint } from "@/lib/types";
-import { formatSpeed } from "@/lib/format";
+import { DeviceInfo, SpeedDataPoint, HardwareDataPoint } from "@/lib/types";
+import { formatSpeed, formatBytes, formatPercent } from "@/lib/format";
 
 const TIME_RANGES = [
   { label: "1H", hours: 1 },
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [hours, setHours] = useState(24);
   const [data, setData] = useState<SpeedDataPoint[]>([]);
+  const [hwData, setHwData] = useState<HardwareDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -36,11 +38,14 @@ export default function Dashboard() {
     if (!selectedDevice) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/speed?device=${selectedDevice}&hours=${hours}`
-      );
-      const d: SpeedDataPoint[] = await res.json();
-      setData(d);
+      const [speedRes, hwRes] = await Promise.all([
+        fetch(`/api/speed?device=${selectedDevice}&hours=${hours}`),
+        fetch(`/api/hardware?device=${selectedDevice}&hours=${hours}`),
+      ]);
+      const [speedData, hardwareData]: [SpeedDataPoint[], HardwareDataPoint[]] =
+        await Promise.all([speedRes.json(), hwRes.json()]);
+      setData(speedData);
+      setHwData(hardwareData);
     } finally {
       setLoading(false);
     }
@@ -71,16 +76,33 @@ export default function Dashboard() {
   }, []);
 
   const latest = data.length > 0 ? data[data.length - 1] : null;
+  const latestHw = hwData.length > 0 ? hwData[hwData.length - 1] : null;
 
   const { avgDown, avgUp } = useMemo(() => {
     if (data.length === 0) return { avgDown: 0, avgUp: 0 };
     const sumDown = data.reduce((s, d) => s + d.totalDownSpeed, 0);
     const sumUp = data.reduce((s, d) => s + d.totalUpSpeed, 0);
-    return {
-      avgDown: sumDown / data.length,
-      avgUp: sumUp / data.length,
-    };
+    return { avgDown: sumDown / data.length, avgUp: sumUp / data.length };
   }, [data]);
+
+  const { avgCpu, avgMem } = useMemo(() => {
+    if (hwData.length === 0) return { avgCpu: 0, avgMem: 0 };
+    const sumCpu = hwData.reduce((s, d) => s + d.cpuUsage, 0);
+    const sumMem = hwData.reduce((s, d) => s + d.memUsedPercent, 0);
+    return {
+      avgCpu: sumCpu / hwData.length,
+      avgMem: sumMem / hwData.length,
+    };
+  }, [hwData]);
+
+  const cpuChartData = useMemo(
+    () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.cpuUsage })),
+    [hwData]
+  );
+  const memChartData = useMemo(
+    () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.memUsedPercent })),
+    [hwData]
+  );
 
   return (
     <div className="space-y-6">
@@ -125,16 +147,16 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label="Download"
           value={latest ? formatSpeed(latest.totalDownSpeed) : "-"}
-          sub={data.length > 0 ? `Avg ${formatSpeed(avgDown)}` : "Current total"}
+          sub={data.length > 0 ? `Avg ${formatSpeed(avgDown)}` : undefined}
         />
         <StatCard
           label="Upload"
           value={latest ? formatSpeed(latest.totalUpSpeed) : "-"}
-          sub={data.length > 0 ? `Avg ${formatSpeed(avgUp)}` : "Current total"}
+          sub={data.length > 0 ? `Avg ${formatSpeed(avgUp)}` : undefined}
         />
         <StatCard
           label="Lines"
@@ -142,13 +164,23 @@ export default function Dashboard() {
           sub="Connected / Total"
         />
         <StatCard
-          label="Data Points"
-          value={String(data.length)}
-          sub={`Last ${hours}h`}
+          label="CPU"
+          value={latestHw ? formatPercent(latestHw.cpuUsage) : "-"}
+          sub={hwData.length > 0 ? `Avg ${formatPercent(avgCpu)}` : undefined}
+        />
+        <StatCard
+          label="Memory"
+          value={latestHw ? formatPercent(latestHw.memUsedPercent) : "-"}
+          sub={latestHw ? `${formatBytes(latestHw.memUsed)} / ${formatBytes(latestHw.memTotal)}` : undefined}
+        />
+        <StatCard
+          label="Disk"
+          value={latestHw ? formatPercent(latestHw.diskUsedPercent) : "-"}
+          sub={latestHw ? `${formatBytes(latestHw.diskUsed)} / ${formatBytes(latestHw.diskTotal)}` : undefined}
         />
       </div>
 
-      {/* Chart */}
+      {/* Speed Chart */}
       <div
         ref={chartRef}
         className={`rounded-xl border border-[#222] bg-[#111] p-5 transition-all duration-300 ${
@@ -157,7 +189,7 @@ export default function Dashboard() {
       >
         <div className="mb-4 flex items-center gap-4">
           <h2 className="text-lg font-semibold text-[#ededed]">
-            Speed Overview
+            Speed
           </h2>
           <div className="flex items-center gap-3 text-xs text-[#888]">
             <span className="flex items-center gap-1">
@@ -202,6 +234,33 @@ export default function Dashboard() {
         </div>
         <div className={isFullscreen ? "flex-1 min-h-0" : ""}>
           <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} fullscreen={isFullscreen} />
+        </div>
+      </div>
+
+      {/* Hardware Charts */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="1" width="14" height="14" rx="2" />
+              <path d="M4 8h2l1-3 2 6 1-3h2" />
+            </svg>
+            <h2 className="text-sm font-semibold text-[#ededed]">CPU Usage</h2>
+          </div>
+          <UsageChart data={cpuChartData} color="#10b981" label="CPU" avg={avgCpu} />
+        </div>
+
+        <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="1" width="4" height="14" rx="1" />
+              <rect x="10" y="1" width="4" height="14" rx="1" />
+              <line x1="4" y1="4" x2="4" y2="12" />
+              <line x1="12" y1="4" x2="12" y2="12" />
+            </svg>
+            <h2 className="text-sm font-semibold text-[#ededed]">Memory Usage</h2>
+          </div>
+          <UsageChart data={memChartData} color="#f59e0b" label="Memory" avg={avgMem} />
         </div>
       </div>
     </div>
