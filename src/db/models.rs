@@ -1,7 +1,7 @@
 use bson::DateTime;
 use serde::{Deserialize, Serialize};
 
-use crate::api::types::SrunLoginData;
+use crate::api::types::{CpuInfo, DiskData, MemInfo, SrunLoginData};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PppoeStatusDoc {
@@ -42,4 +42,16 @@ pub struct ReloginEventDoc {
     pub error_msg: Option<String>,
     pub login_data: Option<SrunLoginData>,
     pub timestamp: DateTime,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct HardwareStatusDoc {
+    pub device_ip: String,
+    pub device_name: String,
+    pub timestamp: DateTime,
+    pub nowtime: i64,
+    pub cpu: Vec<CpuInfo>,
+    pub mem: Vec<MemInfo>,
+    pub disk: Option<DiskData>,
+    pub io: Vec<serde_json::Value>,
 }

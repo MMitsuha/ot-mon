@@ -27,3 +27,4 @@ sha1 = "0.10"
 rand = "0.9"
 uuid = { version = "1", features = ["v4"] }
 base64 = "0.22"
+jsonwebtoken = "9"

@@ -1,7 +1,7 @@
 use crate::api::device::DeviceClient;
 use crate::api::srun::SrunClient;
 use crate::config::Config;
-use crate::db::models::{DialStatusDoc, PppoeStatusDoc};
+use crate::db::models::{DialStatusDoc, HardwareStatusDoc, PppoeStatusDoc};
 use crate::db::mongo::MongoStore;
 use crate::monitor::relogin;
 use crate::notify::telegram::NotifyMessage;
@@ -84,6 +84,28 @@ pub async fn run_poller(
             };
             if let Err(e) = mongo.insert_status(doc).await {
                 tracing::error!(device = %device.name, error = %e, "保存状态到 MongoDB 失败");
+            }
+
+            // 采集硬件状态
+            match device_client.get_hardware_status(&device.ip).await {
+                Ok(hw) => {
+                    let hw_doc = HardwareStatusDoc {
+                        device_ip: device.ip.clone(),
+                        device_name: device.name.clone(),
+                        timestamp: DateTime::now(),
+                        nowtime: hw.nowtime,
+                        cpu: hw.cpu,
+                        mem: hw.mem,
+                        disk: hw.disk,
+                        io: hw.io,
+                    };
+                    if let Err(e) = mongo.insert_hw_status(hw_doc).await {
+                        tracing::error!(device = %device.name, error = %e, "保存硬件状态到 MongoDB 失败");
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(device = %device.name, error = %e, "获取硬件状态失败");
+                }
             }
 
             // 更新连续断线计数器

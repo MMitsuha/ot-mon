@@ -344,6 +344,113 @@ impl NetworkLineConfig {
     }
 }
 
+// ---- 设备登录信息响应 (/v1.0/login_info) ----
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct LoginInfoResponse {
+    #[serde(default)]
+    pub code: i32,
+    #[serde(default)]
+    pub message: String,
+    pub result: Option<LoginInfoResult>,
+}
+
+#[derive(Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct LoginInfoResult {
+    #[serde(default)]
+    pub sn: String,
+    #[serde(default)]
+    pub active_code: String,
+}
+
+// ---- 设备硬件状态响应 (/v1.0/devices/status) ----
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HardwareStatusResponse {
+    #[serde(default)]
+    pub nowtime: i64,
+    #[serde(default)]
+    pub cpu: Vec<CpuInfo>,
+    #[serde(default)]
+    pub mem: Vec<MemInfo>,
+    #[serde(default)]
+    pub disk: Option<DiskData>,
+    #[serde(default)]
+    pub io: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub network: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CpuInfo {
+    #[serde(default)]
+    pub modelname: String,
+    #[serde(default)]
+    pub mhz: String,
+    #[serde(default)]
+    pub cores: i32,
+    #[serde(default)]
+    pub load1: String,
+    #[serde(default)]
+    pub load5: String,
+    #[serde(default)]
+    pub load15: String,
+    #[serde(default)]
+    pub usage: String,
+    #[serde(default)]
+    pub iowait: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MemInfo {
+    #[serde(default)]
+    pub total: u64,
+    #[serde(default)]
+    pub free: u64,
+    #[serde(default)]
+    pub available: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiskData {
+    #[serde(default)]
+    pub disk_info: Vec<DiskInfo>,
+    #[serde(default)]
+    pub timestamp: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiskInfo {
+    #[serde(default)]
+    pub name: String,
+    #[serde(rename = "type", default)]
+    pub disk_type: String,
+    #[serde(default)]
+    pub raw_type: String,
+    #[serde(default)]
+    pub rand_read_iops: u64,
+    #[serde(default)]
+    pub rand_write_iops: u64,
+    #[serde(default)]
+    pub system_disk: bool,
+    #[serde(default)]
+    pub disk_status: i32,
+    #[serde(default)]
+    pub rand_read_bw: u64,
+    #[serde(default)]
+    pub rand_write_bw: u64,
+    #[serde(default)]
+    pub total: u64,
+    #[serde(default)]
+    pub used: u64,
+    #[serde(default)]
+    pub sn: String,
+    #[serde(default)]
+    pub err_msg: String,
+}
+
 // ---- 加密请求体 ----
 
 #[derive(Debug, Serialize)]

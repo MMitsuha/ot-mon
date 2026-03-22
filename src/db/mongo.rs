@@ -25,6 +25,10 @@ impl MongoStore {
         self.db.collection("relogin_events")
     }
 
+    fn hw_status_collection(&self) -> Collection<HardwareStatusDoc> {
+        self.db.collection("hardware_status")
+    }
+
     pub async fn ensure_indexes(&self) -> Result<()> {
         // pppoe_status: 按设备+时间倒序
         self.status_collection()
@@ -58,6 +62,29 @@ impl MongoStore {
             )
             .await?;
 
+        // hardware_status: 按设备+时间倒序
+        self.hw_status_collection()
+            .create_index(
+                IndexModel::builder()
+                    .keys(doc! { "device_ip": 1, "timestamp": -1 })
+                    .build(),
+            )
+            .await?;
+
+        // hardware_status: 30天 TTL
+        self.hw_status_collection()
+            .create_index(
+                IndexModel::builder()
+                    .keys(doc! { "timestamp": 1 })
+                    .options(
+                        IndexOptions::builder()
+                            .expire_after(std::time::Duration::from_secs(30 * 24 * 3600))
+                            .build(),
+                    )
+                    .build(),
+            )
+            .await?;
+
         tracing::info!("MongoDB 索引创建完成");
         Ok(())
     }
@@ -69,6 +96,11 @@ impl MongoStore {
 
     pub async fn insert_relogin_event(&self, doc: ReloginEventDoc) -> Result<()> {
         self.relogin_collection().insert_one(doc).await?;
+        Ok(())
+    }
+
+    pub async fn insert_hw_status(&self, doc: HardwareStatusDoc) -> Result<()> {
+        self.hw_status_collection().insert_one(doc).await?;
         Ok(())
     }
 
