@@ -121,8 +121,15 @@ export default function SpeedChart({
   avgUp,
   hours,
 }: SpeedChartProps) {
-  const { points: chartData, gaps } = useMemo(
-    () => buildChartData(data, hours),
+  const { points: chartData, gaps, domainMax: builtMax } = useMemo(
+    () => {
+      const result = buildChartData(data, hours);
+      // Extend domain to now so trailing gaps are visible
+      const now = result.points.length > 0
+        ? Math.max(result.points[result.points.length - 1].ts, ...result.gaps.map((g) => g.x2))
+        : 0;
+      return { ...result, domainMax: now };
+    },
     [data, hours]
   );
 
@@ -135,13 +142,13 @@ export default function SpeedChart({
       };
     }
     const min = chartData[0].ts;
-    const max = Date.now();
+    const max = builtMax;
     return {
       domainMin: min,
       domainMax: max,
       ticks: generateTicks(min, max, getTickCount(hours)),
     };
-  }, [chartData, hours]);
+  }, [chartData, builtMax, hours]);
 
   if (data.length === 0) {
     return (

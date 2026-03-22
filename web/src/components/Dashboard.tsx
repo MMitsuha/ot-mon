@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import SpeedChart from "./SpeedChart";
 import StatCard from "./StatCard";
 import { DeviceInfo, SpeedDataPoint } from "@/lib/types";
@@ -51,6 +51,24 @@ export default function Dashboard() {
     const id = setInterval(() => void fetchData(), 60_000);
     return () => clearInterval(id);
   }, [fetchData]);
+
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFs);
+    return () => document.removeEventListener("fullscreenchange", onFs);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!chartRef.current) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      chartRef.current.requestFullscreen();
+    }
+  }, []);
 
   const latest = data.length > 0 ? data[data.length - 1] : null;
 
@@ -131,7 +149,10 @@ export default function Dashboard() {
       </div>
 
       {/* Chart */}
-      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+      <div
+        ref={chartRef}
+        className="rounded-xl border border-[#222] bg-[#111] p-5 transition-all duration-300"
+      >
         <div className="mb-4 flex items-center gap-4">
           <h2 className="text-lg font-semibold text-[#ededed]">
             Speed Overview
@@ -155,6 +176,27 @@ export default function Dashboard() {
               No data
             </span>
           </div>
+          <button
+            onClick={toggleFullscreen}
+            className="ml-auto rounded-lg p-1.5 text-[#555] transition-colors duration-200 hover:bg-[#1a1a1a] hover:text-[#ededed]"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 1 6 6 1 6" />
+                <polyline points="10 15 10 10 15 10" />
+                <line x1="1" y1="6" x2="6" y2="1" />
+                <line x1="15" y1="10" x2="10" y2="15" />
+              </svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="10 1 15 1 15 6" />
+                <polyline points="6 15 1 15 1 10" />
+                <line x1="15" y1="1" x2="10" y2="6" />
+                <line x1="1" y1="15" x2="6" y2="10" />
+              </svg>
+            )}
+          </button>
         </div>
         <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} />
       </div>
