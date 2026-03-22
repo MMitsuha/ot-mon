@@ -12,6 +12,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   ReferenceArea,
+  ReferenceLine,
 } from "recharts";
 import { DiskDataPoint } from "@/lib/types";
 import { formatKbps, formatMs, formatPercent, formatBytes } from "@/lib/format";
@@ -157,6 +158,19 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
     };
   }, [chartData, builtMax, hours]);
 
+  const averages = useMemo(() => {
+    if (data.length === 0) return { rkbs: 0, wkbs: 0, rAwait: 0, wAwait: 0, svctm: 0, util: 0 };
+    const n = data.length;
+    return {
+      rkbs: data.reduce((s, d) => s + d.rkbs, 0) / n,
+      wkbs: data.reduce((s, d) => s + d.wkbs, 0) / n,
+      rAwait: data.reduce((s, d) => s + d.rAwait, 0) / n,
+      wAwait: data.reduce((s, d) => s + d.wAwait, 0) / n,
+      svctm: data.reduce((s, d) => s + d.svctm, 0) / n,
+      util: data.reduce((s, d) => s + d.util, 0) / n,
+    };
+  }, [data]);
+
   // Latest used for capacity bar
   const latestUsed = data.length > 0 ? data[data.length - 1].used : 0;
   const usedPercent = totalCapacity > 0 ? (latestUsed / totalCapacity) * 100 : 0;
@@ -254,16 +268,15 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
           <YAxis
             yAxisId="right"
             orientation="right"
-            tickFormatter={(v: number) => {
-              // Show ms or % depending on visible series
-              const hasUtil = !hiddenSeries.has("util");
-              const hasAwait = !hiddenSeries.has("rAwait") || !hiddenSeries.has("wAwait") || !hiddenSeries.has("svctm");
-              if (hasUtil && !hasAwait) return formatPercent(v);
-              return formatMs(v);
-            }}
+            tickFormatter={formatMs}
             stroke="#555"
             tick={{ fill: "#888", fontSize: 11 }}
             width={52}
+          />
+          <YAxis
+            yAxisId="right2"
+            hide
+            domain={[0, 100]}
           />
           <Tooltip
             contentStyle={{
@@ -276,13 +289,19 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             formatter={(value, name) => tooltipFormatter(Number(value), String(name))}
           />
           <Legend
-            onClick={(e) => toggleSeries(String(e.dataKey))}
-            wrapperStyle={{ cursor: "pointer", fontSize: 11 }}
-            formatter={(value, entry) => {
-              const key = String(entry.dataKey);
-              const isHidden = hiddenSeries.has(key);
-              return <span style={{ color: isHidden ? "#555" : entry.color, textDecoration: isHidden ? "line-through" : "none" }}>{value}</span>;
-            }}
+            content={() => (
+              <ul style={{ display: "flex", justifyContent: "center", gap: 12, listStyle: "none", margin: 0, padding: "8px 0 0", fontSize: 11 }}>
+                {SERIES.map((s) => {
+                  const isHidden = hiddenSeries.has(s.key);
+                  return (
+                    <li key={s.key} style={{ cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }} onClick={() => toggleSeries(s.key)}>
+                      <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: s.type === "area" ? 2 : 0, backgroundColor: s.type === "area" ? s.color : "transparent", borderBottom: s.type === "line" ? `2px solid ${s.color}` : "none", opacity: isHidden ? 0.3 : 1 }} />
+                      <span style={{ color: isHidden ? "#555" : s.color, textDecoration: isHidden ? "line-through" : "none" }}>{s.label}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           />
           {/* Gap areas */}
           {gaps.map((gap, i) => (
@@ -297,6 +316,31 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
               strokeDasharray="4 2"
             />
           ))}
+          {/* Average reference lines */}
+          {!hiddenSeries.has("rkbs") && averages.rkbs > 0 && (
+            <ReferenceLine yAxisId="left" y={averages.rkbs} stroke="#0ea5e9" strokeDasharray="6 4" strokeOpacity={0.5}
+              label={{ value: `Avg ${formatKbps(averages.rkbs)}`, fill: "#0ea5e9", fontSize: 10, position: "insideTopRight" }} />
+          )}
+          {!hiddenSeries.has("wkbs") && averages.wkbs > 0 && (
+            <ReferenceLine yAxisId="left" y={averages.wkbs} stroke="#8b5cf6" strokeDasharray="6 4" strokeOpacity={0.5}
+              label={{ value: `Avg ${formatKbps(averages.wkbs)}`, fill: "#8b5cf6", fontSize: 10, position: "insideBottomRight" }} />
+          )}
+          {!hiddenSeries.has("rAwait") && averages.rAwait > 0 && (
+            <ReferenceLine yAxisId="right" y={averages.rAwait} stroke="#f59e0b" strokeDasharray="6 4" strokeOpacity={0.5}
+              label={{ value: `Avg ${formatMs(averages.rAwait)}`, fill: "#f59e0b", fontSize: 10, position: "insideTopLeft" }} />
+          )}
+          {!hiddenSeries.has("wAwait") && averages.wAwait > 0 && (
+            <ReferenceLine yAxisId="right" y={averages.wAwait} stroke="#ef4444" strokeDasharray="6 4" strokeOpacity={0.5}
+              label={{ value: `Avg ${formatMs(averages.wAwait)}`, fill: "#ef4444", fontSize: 10, position: "insideBottomLeft" }} />
+          )}
+          {!hiddenSeries.has("svctm") && averages.svctm > 0 && (
+            <ReferenceLine yAxisId="right" y={averages.svctm} stroke="#10b981" strokeDasharray="6 4" strokeOpacity={0.5}
+              label={{ value: `Avg ${formatMs(averages.svctm)}`, fill: "#10b981", fontSize: 10, position: "insideLeft" }} />
+          )}
+          {!hiddenSeries.has("util") && averages.util > 0 && (
+            <ReferenceLine yAxisId="right2" y={averages.util} stroke="#06b6d4" strokeDasharray="6 4" strokeOpacity={0.5}
+              label={{ value: `Avg ${formatPercent(averages.util)}`, fill: "#06b6d4", fontSize: 10, position: "insideTopLeft" }} />
+          )}
           {/* Default ON: read/write throughput */}
           <Area
             yAxisId="left"
@@ -307,6 +351,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             fill={`url(#dg-rkbs-${sn})`}
             strokeWidth={1.5}
             dot={false}
+            isAnimationActive={false}
             hide={hiddenSeries.has("rkbs")}
           />
           <Area
@@ -318,6 +363,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             fill={`url(#dg-wkbs-${sn})`}
             strokeWidth={1.5}
             dot={false}
+            isAnimationActive={false}
             hide={hiddenSeries.has("wkbs")}
           />
           {/* Default OFF: latency + util */}
@@ -330,6 +376,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
+            isAnimationActive={false}
             hide={hiddenSeries.has("rAwait")}
           />
           <Line
@@ -341,6 +388,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
+            isAnimationActive={false}
             hide={hiddenSeries.has("wAwait")}
           />
           <Line
@@ -352,16 +400,18 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
+            isAnimationActive={false}
             hide={hiddenSeries.has("svctm")}
           />
           <Line
-            yAxisId="right"
+            yAxisId="right2"
             type="monotone"
             dataKey="util"
             name="Util %"
             stroke="#06b6d4"
             strokeWidth={1.5}
             dot={false}
+            isAnimationActive={false}
             hide={hiddenSeries.has("util")}
           />
         </ComposedChart>
