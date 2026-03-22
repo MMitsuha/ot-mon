@@ -7,6 +7,39 @@
   --font-mono: var(--font-geist-mono);
 }
 
+:root {
+  /* Surface colors */
+  --card-bg: #111;
+  --card-border: #222;
+  --card-border-hover: #333;
+
+  /* Text hierarchy */
+  --text-primary: #ededed;
+  --text-secondary: #888;
+  --text-muted: #666;
+  --text-dim: #555;
+
+  /* Chart colors */
+  --chart-grid: #222;
+  --chart-axis: #555;
+  --chart-tick: #888;
+  --chart-gap: #333;
+  --chart-tooltip-bg: #111;
+  --chart-tooltip-border: #333;
+
+  /* Series colors */
+  --color-download: #0ea5e9;
+  --color-upload: #8b5cf6;
+  --color-cpu: #10b981;
+  --color-memory: #f59e0b;
+  --color-disk-read: #0ea5e9;
+  --color-disk-write: #8b5cf6;
+  --color-disk-rawait: #f59e0b;
+  --color-disk-wawait: #ef4444;
+  --color-disk-svctm: #10b981;
+  --color-disk-util: #06b6d4;
+}
+
 body {
   background: var(--color-background);
   color: var(--color-foreground);
@@ -19,6 +52,6 @@ body {
 }
 
 select option {
-  background: #111;
-  color: #ededed;
+  background: var(--card-bg);
+  color: var(--text-primary);
 }

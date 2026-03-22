@@ -16,6 +16,14 @@ import {
 } from "recharts";
 import { DiskDataPoint } from "@/lib/types";
 import { formatKbps, formatMs, formatPercent, formatBytes } from "@/lib/format";
+import {
+  detectGaps,
+  computeDomain,
+  formatTickTime,
+  formatTooltipTime,
+  TOOLTIP_STYLE,
+  GAP_PATTERN_PROPS,
+} from "@/lib/chart";
 
 interface DiskChartProps {
   sn: string;
@@ -23,48 +31,6 @@ interface DiskChartProps {
   totalCapacity: number;
   data: DiskDataPoint[];
   hours: number;
-}
-
-interface Gap {
-  x1: number;
-  x2: number;
-}
-
-const SERIES = [
-  { key: "rkbs", label: "Read", color: "#0ea5e9", axis: "left", type: "area", defaultOn: true },
-  { key: "wkbs", label: "Write", color: "#8b5cf6", axis: "left", type: "area", defaultOn: true },
-  { key: "rAwait", label: "R Await", color: "#f59e0b", axis: "right", type: "line", defaultOn: false },
-  { key: "wAwait", label: "W Await", color: "#ef4444", axis: "right", type: "line", defaultOn: false },
-  { key: "svctm", label: "Svctm", color: "#10b981", axis: "right", type: "line", defaultOn: false },
-  { key: "util", label: "Util %", color: "#06b6d4", axis: "right", type: "line", defaultOn: false },
-] as const;
-
-function formatTickTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-}
-
-function formatTooltipTime(ts: number): string {
-  return new Date(ts).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function generateTicks(start: number, end: number, count: number): number[] {
-  const step = (end - start) / count;
-  return Array.from({ length: count + 1 }, (_, i) => Math.round(start + step * i));
-}
-
-function getTickCount(hours: number): number {
-  if (hours <= 1) return 6;
-  if (hours <= 6) return 6;
-  if (hours <= 24) return 8;
-  return 7;
-}
-
-function getExpectedIntervalMs(hours: number): number {
-  if (hours <= 1) return 1 * 60_000;
-  if (hours <= 6) return 2 * 60_000;
-  if (hours <= 24) return 5 * 60_000;
-  if (hours <= 168) return 30 * 60_000;
-  return 60 * 60_000;
 }
 
 interface ChartPoint {
@@ -77,48 +43,14 @@ interface ChartPoint {
   util: number | null;
 }
 
-function buildChartData(
-  data: DiskDataPoint[],
-  hours: number
-): { points: ChartPoint[]; gaps: Gap[]; domainMax: number } {
-  if (data.length === 0) return { points: [], gaps: [], domainMax: 0 };
-
-  const raw: ChartPoint[] = data.map((d) => ({
-    ts: new Date(d.timestamp).getTime(),
-    rkbs: d.rkbs,
-    wkbs: d.wkbs,
-    rAwait: d.rAwait,
-    wAwait: d.wAwait,
-    svctm: d.svctm,
-    util: d.util,
-  }));
-
-  const threshold = getExpectedIntervalMs(hours) * 2.5;
-  const gaps: Gap[] = [];
-  const points: ChartPoint[] = [raw[0]];
-
-  for (let i = 1; i < raw.length; i++) {
-    const delta = raw[i].ts - raw[i - 1].ts;
-    if (delta > threshold) {
-      gaps.push({ x1: raw[i - 1].ts, x2: raw[i].ts });
-      points.push({
-        ts: raw[i - 1].ts + 1,
-        rkbs: null, wkbs: null, rAwait: null, wAwait: null, svctm: null, util: null,
-      });
-    }
-    points.push(raw[i]);
-  }
-
-  // Trailing gap
-  const now = Date.now();
-  const lastTs = raw[raw.length - 1].ts;
-  if (now - lastTs > threshold) {
-    gaps.push({ x1: lastTs, x2: now });
-  }
-
-  const domainMax = Math.max(raw[raw.length - 1].ts, ...gaps.map((g) => g.x2));
-  return { points, gaps, domainMax };
-}
+const SERIES = [
+  { key: "rkbs", label: "Read", color: "#0ea5e9", axis: "left", type: "area", defaultOn: true },
+  { key: "wkbs", label: "Write", color: "#8b5cf6", axis: "left", type: "area", defaultOn: true },
+  { key: "rAwait", label: "R Await", color: "#f59e0b", axis: "right", type: "line", defaultOn: false },
+  { key: "wAwait", label: "W Await", color: "#ef4444", axis: "right", type: "line", defaultOn: false },
+  { key: "svctm", label: "Svctm", color: "#10b981", axis: "right", type: "line", defaultOn: false },
+  { key: "util", label: "Util %", color: "#06b6d4", axis: "right", type: "line", defaultOn: false },
+] as const;
 
 function tooltipFormatter(value: number, name: string): [string, string] {
   const series = SERIES.find((s) => s.key === name || s.label === name);
@@ -143,19 +75,37 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
     });
   }, []);
 
-  const { points: chartData, gaps, domainMax: builtMax } = useMemo(
-    () => buildChartData(data, hours),
-    [data, hours]
-  );
+  const { points: chartData, gaps, domainMax: builtMax } = useMemo(() => {
+    if (data.length === 0) return { points: [] as ChartPoint[], gaps: [], domainMax: 0 };
+
+    const raw: ChartPoint[] = data.map((d) => ({
+      ts: new Date(d.timestamp).getTime(),
+      rkbs: d.rkbs,
+      wkbs: d.wkbs,
+      rAwait: d.rAwait,
+      wAwait: d.wAwait,
+      svctm: d.svctm,
+      util: d.util,
+    }));
+
+    const timestamps = raw.map((r) => r.ts);
+    const { gaps, domainMax, nullInsertIndices } = detectGaps(timestamps, hours);
+
+    const points: ChartPoint[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (nullInsertIndices.has(i)) {
+        points.push({ ts: raw[i - 1].ts + 1, rkbs: null, wkbs: null, rAwait: null, wAwait: null, svctm: null, util: null });
+      }
+      points.push(raw[i]);
+    }
+
+    return { points, gaps, domainMax };
+  }, [data, hours]);
 
   const { domainMin, domainMax, ticks } = useMemo(() => {
     if (chartData.length === 0) return { domainMin: 0, domainMax: 1, ticks: [] as number[] };
-    const min = chartData[0].ts;
-    return {
-      domainMin: min,
-      domainMax: builtMax,
-      ticks: generateTicks(min, builtMax, getTickCount(hours)),
-    };
+    const { domainMin, domainMax, ticks } = computeDomain(chartData[0].ts, builtMax, hours);
+    return { domainMin, domainMax, ticks };
   }, [chartData, builtMax, hours]);
 
   const averages = useMemo(() => {
@@ -239,10 +189,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             </linearGradient>
             <pattern
               id={`dgap-${sn}`}
-              width="6"
-              height="6"
-              patternUnits="userSpaceOnUse"
-              patternTransform="rotate(45)"
+              {...GAP_PATTERN_PROPS}
             >
               <line x1="0" y1="0" x2="0" y2="6" stroke="#333" strokeWidth="1.5" />
             </pattern>
@@ -263,7 +210,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             tickFormatter={formatKbps}
             stroke="#555"
             tick={{ fill: "#888", fontSize: 11 }}
-            width={80}
+            width={90}
           />
           <YAxis
             yAxisId="right"
@@ -279,12 +226,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             domain={[0, 100]}
           />
           <Tooltip
-            contentStyle={{
-              backgroundColor: "#111",
-              border: "1px solid #333",
-              borderRadius: 8,
-              color: "#ededed",
-            }}
+            contentStyle={TOOLTIP_STYLE}
             labelFormatter={(l) => formatTooltipTime(Number(l))}
             formatter={(value, name) => tooltipFormatter(Number(value), String(name))}
           />
@@ -351,7 +293,6 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             fill={`url(#dg-rkbs-${sn})`}
             strokeWidth={1.5}
             dot={false}
-            isAnimationActive={false}
             hide={hiddenSeries.has("rkbs")}
           />
           <Area
@@ -363,7 +304,6 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             fill={`url(#dg-wkbs-${sn})`}
             strokeWidth={1.5}
             dot={false}
-            isAnimationActive={false}
             hide={hiddenSeries.has("wkbs")}
           />
           {/* Default OFF: latency + util */}
@@ -376,7 +316,6 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
-            isAnimationActive={false}
             hide={hiddenSeries.has("rAwait")}
           />
           <Line
@@ -388,7 +327,6 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
-            isAnimationActive={false}
             hide={hiddenSeries.has("wAwait")}
           />
           <Line
@@ -400,7 +338,6 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             strokeDasharray="4 2"
             dot={false}
-            isAnimationActive={false}
             hide={hiddenSeries.has("svctm")}
           />
           <Line
@@ -411,7 +348,6 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             stroke="#06b6d4"
             strokeWidth={1.5}
             dot={false}
-            isAnimationActive={false}
             hide={hiddenSeries.has("util")}
           />
         </ComposedChart>

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDb } from "@/lib/mongodb";
-
-function getInterval(hours: number): number {
-  if (hours <= 1) return 1;
-  if (hours <= 6) return 2;
-  if (hours <= 24) return 5;
-  if (hours <= 168) return 30;
-  return 60;
-}
+import { getInterval } from "@/lib/api";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;

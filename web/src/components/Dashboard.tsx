@@ -1,66 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import SpeedChart from "./SpeedChart";
-import UsageChart from "./UsageChart";
-import DiskChart from "./DiskChart";
+import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import SpeedChart from "./charts/SpeedChart";
+import UsageChart from "./charts/UsageChart";
+import DiskChart from "./charts/DiskChart";
+import ChartCard from "./ChartCard";
 import StatCard from "./StatCard";
-import { DeviceInfo, SpeedDataPoint, HardwareDataPoint, PerDiskSeries } from "@/lib/types";
+import { useDashboardData, TIME_RANGES } from "@/hooks/use-dashboard-data";
 import { formatSpeed, formatBytes, formatPercent } from "@/lib/format";
 
-const TIME_RANGES = [
-  { label: "1H", hours: 1 },
-  { label: "6H", hours: 6 },
-  { label: "24H", hours: 24 },
-  { label: "7D", hours: 168 },
-];
-
 export default function Dashboard() {
-  const [devices, setDevices] = useState<DeviceInfo[]>([]);
-  const [selectedDevice, setSelectedDevice] = useState<string>("");
-  const [hours, setHours] = useState(24);
-  const [data, setData] = useState<SpeedDataPoint[]>([]);
-  const [hwData, setHwData] = useState<HardwareDataPoint[]>([]);
-  const [diskData, setDiskData] = useState<PerDiskSeries[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    devices,
+    selectedDevice,
+    setSelectedDevice,
+    hours,
+    setHours,
+    speedData,
+    hwData,
+    diskData,
+    isLoading,
+  } = useDashboardData();
 
-  useEffect(() => {
-    fetch("/api/devices")
-      .then((r) => r.json())
-      .then((d: DeviceInfo[]) => {
-        d.sort((a, b) => a.device_name.localeCompare(b.device_name));
-        setDevices(d);
-        if (d.length > 0 && !selectedDevice) {
-          setSelectedDevice(d[0].device_ip);
-        }
-      });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchData = useCallback(async () => {
-    if (!selectedDevice) return;
-    setLoading(true);
-    try {
-      const [speedRes, hwRes, diskRes] = await Promise.all([
-        fetch(`/api/speed?device=${selectedDevice}&hours=${hours}`),
-        fetch(`/api/hardware?device=${selectedDevice}&hours=${hours}`),
-        fetch(`/api/disks?device=${selectedDevice}&hours=${hours}`),
-      ]);
-      const [speedData, hardwareData, perDiskData]: [SpeedDataPoint[], HardwareDataPoint[], PerDiskSeries[]] =
-        await Promise.all([speedRes.json(), hwRes.json(), diskRes.json()]);
-      setData(speedData);
-      setHwData(hardwareData);
-      setDiskData(perDiskData);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedDevice, hours]);
-
-  useEffect(() => {
-    fetchData();
-    const id = setInterval(() => void fetchData(), 60_000);
-    return () => clearInterval(id);
-  }, [fetchData]);
-
+  // Fullscreen state for speed chart
   const chartRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -79,15 +41,18 @@ export default function Dashboard() {
     }
   }, []);
 
-  const latest = data.length > 0 ? data[data.length - 1] : null;
+  // Derived stats
+  const latest = speedData.length > 0 ? speedData[speedData.length - 1] : null;
   const latestHw = hwData.length > 0 ? hwData[hwData.length - 1] : null;
 
   const { avgDown, avgUp } = useMemo(() => {
-    if (data.length === 0) return { avgDown: 0, avgUp: 0 };
-    const sumDown = data.reduce((s, d) => s + d.totalDownSpeed, 0);
-    const sumUp = data.reduce((s, d) => s + d.totalUpSpeed, 0);
-    return { avgDown: sumDown / data.length, avgUp: sumUp / data.length };
-  }, [data]);
+    if (speedData.length === 0) return { avgDown: 0, avgUp: 0 };
+    const n = speedData.length;
+    return {
+      avgDown: speedData.reduce((s, d) => s + d.totalDownSpeed, 0) / n,
+      avgUp: speedData.reduce((s, d) => s + d.totalUpSpeed, 0) / n,
+    };
+  }, [speedData]);
 
   const { avgCpu, avgMem } = useMemo(() => {
     if (hwData.length === 0) return { avgCpu: 0, avgMem: 0 };
@@ -114,7 +79,7 @@ export default function Dashboard() {
         <select
           value={selectedDevice}
           onChange={(e) => setSelectedDevice(e.target.value)}
-          className="appearance-none rounded-lg border border-[#333] bg-[#111] px-4 py-2 pr-8 text-sm text-[#ededed] outline-none transition-all duration-200 focus:border-[#555] focus:ring-1 focus:ring-[#555] hover:border-[#444] cursor-pointer"
+          className="appearance-none rounded-lg border border-[var(--card-border-hover)] bg-[var(--card-bg)] px-4 py-2 pr-8 text-sm text-[var(--text-primary)] outline-none transition-all duration-200 focus:border-[var(--text-dim)] focus:ring-1 focus:ring-[var(--text-dim)] hover:border-[var(--card-border-hover)] cursor-pointer"
           style={{
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E")`,
             backgroundRepeat: "no-repeat",
@@ -128,15 +93,15 @@ export default function Dashboard() {
           ))}
         </select>
 
-        <div className="flex rounded-lg border border-[#333] overflow-hidden">
+        <div className="flex rounded-lg border border-[var(--card-border-hover)] overflow-hidden">
           {TIME_RANGES.map((r) => (
             <button
               key={r.hours}
               onClick={() => setHours(r.hours)}
               className={`px-4 py-2 text-sm transition-all duration-200 ${
                 hours === r.hours
-                  ? "bg-[#ededed] text-[#0a0a0a]"
-                  : "bg-[#111] text-[#888] hover:text-[#ededed] hover:bg-[#1a1a1a]"
+                  ? "bg-[var(--text-primary)] text-[var(--color-background)]"
+                  : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#1a1a1a]"
               }`}
             >
               {r.label}
@@ -144,8 +109,8 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {loading && (
-          <span className="text-xs text-[#555]">Loading...</span>
+        {isLoading && (
+          <span className="text-xs text-[var(--text-dim)]">Loading...</span>
         )}
       </div>
 
@@ -154,12 +119,12 @@ export default function Dashboard() {
         <StatCard
           label="Download"
           value={latest ? formatSpeed(latest.totalDownSpeed) : "-"}
-          sub={data.length > 0 ? `Avg ${formatSpeed(avgDown)}` : undefined}
+          sub={speedData.length > 0 ? `Avg ${formatSpeed(avgDown)}` : undefined}
         />
         <StatCard
           label="Upload"
           value={latest ? formatSpeed(latest.totalUpSpeed) : "-"}
-          sub={data.length > 0 ? `Avg ${formatSpeed(avgUp)}` : undefined}
+          sub={speedData.length > 0 ? `Avg ${formatSpeed(avgUp)}` : undefined}
         />
         <StatCard
           label="Lines"
@@ -178,30 +143,28 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Speed Chart */}
+      {/* Speed Chart — special: supports fullscreen */}
       <div
         ref={chartRef}
-        className={`rounded-xl border border-[#222] bg-[#111] p-5 transition-all duration-300 ${
+        className={`rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 transition-all duration-300 ${
           isFullscreen ? "flex flex-col h-screen w-screen" : ""
         }`}
       >
         <div className="mb-4 flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-[#ededed]">
-            Speed
-          </h2>
-          <div className="flex items-center gap-3 text-xs text-[#888]">
+          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Speed</h2>
+          <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-[#0ea5e9]" />
+              <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-download)]" />
               Download
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block h-2 w-2 rounded-full bg-[#8b5cf6]" />
+              <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-upload)]" />
               Upload
             </span>
             <span className="flex items-center gap-1">
               <svg width="8" height="8" viewBox="0 0 8 8" className="inline-block">
                 <pattern id="legendGap" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="0" y2="4" stroke="#555" strokeWidth="1" />
+                  <line x1="0" y1="0" x2="0" y2="4" stroke="var(--text-dim)" strokeWidth="1" />
                 </pattern>
                 <rect width="8" height="8" rx="1" fill="url(#legendGap)" />
               </svg>
@@ -210,7 +173,7 @@ export default function Dashboard() {
           </div>
           <button
             onClick={toggleFullscreen}
-            className="ml-auto rounded-lg p-1.5 text-[#555] transition-colors duration-200 hover:bg-[#1a1a1a] hover:text-[#ededed]"
+            className="ml-auto rounded-lg p-1.5 text-[var(--text-dim)] transition-colors duration-200 hover:bg-[#1a1a1a] hover:text-[var(--text-primary)]"
             aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
           >
             {isFullscreen ? (
@@ -231,39 +194,41 @@ export default function Dashboard() {
           </button>
         </div>
         <div className={isFullscreen ? "flex-1 min-h-0" : ""}>
-          <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} fullscreen={isFullscreen} />
+          <SpeedChart data={speedData} avgDown={avgDown} avgUp={avgUp} hours={hours} fullscreen={isFullscreen} />
         </div>
       </div>
 
       {/* CPU Chart */}
-      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <ChartCard
+        title="CPU Usage"
+        icon={
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-cpu)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="1" y="1" width="14" height="14" rx="2" />
             <path d="M4 8h2l1-3 2 6 1-3h2" />
           </svg>
-          <h2 className="text-sm font-semibold text-[#ededed]">CPU Usage</h2>
-        </div>
-        <UsageChart data={cpuChartData} color="#10b981" label="CPU" avg={avgCpu} hours={hours} />
-      </div>
+        }
+      >
+        <UsageChart data={cpuChartData} color="var(--color-cpu)" label="CPU" avg={avgCpu} hours={hours} />
+      </ChartCard>
 
       {/* Memory Chart */}
-      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
-        <div className="mb-3 flex items-center gap-2">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <ChartCard
+        title="Memory Usage"
+        icon={
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-memory)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="1" width="4" height="14" rx="1" />
             <rect x="10" y="1" width="4" height="14" rx="1" />
             <line x1="4" y1="4" x2="4" y2="12" />
             <line x1="12" y1="4" x2="12" y2="12" />
           </svg>
-          <h2 className="text-sm font-semibold text-[#ededed]">Memory Usage</h2>
-        </div>
-        <UsageChart data={memChartData} color="#f59e0b" label="Memory" avg={avgMem} hours={hours} />
-      </div>
+        }
+      >
+        <UsageChart data={memChartData} color="var(--color-memory)" label="Memory" avg={avgMem} hours={hours} />
+      </ChartCard>
 
       {/* Per-Disk Charts */}
       {diskData.map((disk) => (
-        <div key={disk.sn} className="rounded-xl border border-[#222] bg-[#111] p-5">
+        <div key={disk.sn} className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
           <DiskChart
             sn={disk.sn}
             diskType={disk.diskType}

@@ -12,6 +12,14 @@ import {
   ReferenceLine,
   ReferenceArea,
 } from "recharts";
+import {
+  detectGaps,
+  computeDomain,
+  formatTickTime,
+  formatTooltipTime,
+  TOOLTIP_STYLE,
+  GAP_PATTERN_PROPS,
+} from "@/lib/chart";
 
 interface UsageChartProps {
   data: { timestamp: string; value: number }[];
@@ -24,90 +32,6 @@ interface UsageChartProps {
   formatter?: (v: number) => string;
 }
 
-interface Gap {
-  x1: number;
-  x2: number;
-}
-
-function formatTickTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatTooltipTime(ts: number): string {
-  return new Date(ts).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function generateTicks(start: number, end: number, count: number): number[] {
-  const step = (end - start) / count;
-  const ticks: number[] = [];
-  for (let i = 0; i <= count; i++) {
-    ticks.push(Math.round(start + step * i));
-  }
-  return ticks;
-}
-
-function getTickCount(hours: number): number {
-  if (hours <= 1) return 6;
-  if (hours <= 6) return 6;
-  if (hours <= 24) return 8;
-  return 7;
-}
-
-function getExpectedIntervalMs(hours: number): number {
-  if (hours <= 1) return 1 * 60_000;
-  if (hours <= 6) return 2 * 60_000;
-  if (hours <= 24) return 5 * 60_000;
-  if (hours <= 168) return 30 * 60_000;
-  return 60 * 60_000;
-}
-
-function buildChartData(
-  data: { timestamp: string; value: number }[],
-  hours: number
-): { points: { ts: number; value: number | null }[]; gaps: Gap[]; domainMax: number } {
-  if (data.length === 0) return { points: [], gaps: [], domainMax: 0 };
-
-  const raw = data.map((d) => ({
-    ts: new Date(d.timestamp).getTime(),
-    value: d.value as number | null,
-  }));
-
-  const threshold = getExpectedIntervalMs(hours) * 2.5;
-  const gaps: Gap[] = [];
-  const points: { ts: number; value: number | null }[] = [raw[0]];
-
-  for (let i = 1; i < raw.length; i++) {
-    const delta = raw[i].ts - raw[i - 1].ts;
-    if (delta > threshold) {
-      gaps.push({ x1: raw[i - 1].ts, x2: raw[i].ts });
-      points.push({ ts: raw[i - 1].ts + 1, value: null });
-    }
-    points.push(raw[i]);
-  }
-
-  // Trailing gap
-  const now = Date.now();
-  const lastTs = raw[raw.length - 1].ts;
-  if (now - lastTs > threshold) {
-    gaps.push({ x1: lastTs, x2: now });
-  }
-
-  const domainMax = Math.max(
-    raw[raw.length - 1].ts,
-    ...gaps.map((g) => g.x2)
-  );
-
-  return { points, gaps, domainMax };
-}
-
 export default function UsageChart({
   data,
   color,
@@ -118,23 +42,36 @@ export default function UsageChart({
   domain = [0, 100],
   formatter,
 }: UsageChartProps) {
-  const { points: chartData, gaps, domainMax: builtMax } = useMemo(
-    () => buildChartData(data, hours),
-    [data, hours]
-  );
-
-  const { domainMin, domainMax, ticks } = useMemo(() => {
-    if (chartData.length === 0) {
-      return { domainMin: 0, domainMax: 1, ticks: [] as number[] };
+  const { chartData, gaps, domainMin, domainMax, ticks } = useMemo(() => {
+    if (data.length === 0) {
+      return {
+        chartData: [] as { ts: number; value: number | null }[],
+        gaps: [],
+        domainMin: 0,
+        domainMax: 1,
+        ticks: [] as number[],
+      };
     }
-    const min = chartData[0].ts;
-    const max = builtMax;
-    return {
-      domainMin: min,
-      domainMax: max,
-      ticks: generateTicks(min, max, getTickCount(hours)),
-    };
-  }, [chartData, builtMax, hours]);
+
+    const raw = data.map((d) => ({
+      ts: new Date(d.timestamp).getTime(),
+      value: d.value as number | null,
+    }));
+    const timestamps = raw.map((r) => r.ts);
+    const { gaps, domainMax, nullInsertIndices } = detectGaps(timestamps, hours);
+
+    const points: { ts: number; value: number | null }[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (nullInsertIndices.has(i)) {
+        points.push({ ts: raw[i - 1].ts + 1, value: null });
+      }
+      points.push(raw[i]);
+    }
+
+    const { domainMin, ticks } = computeDomain(raw[0].ts, domainMax, hours);
+
+    return { chartData: points, gaps, domainMin, domainMax, ticks };
+  }, [data, hours]);
 
   const fmt = formatter ?? ((v: number) => `${v.toFixed(1)}${unit}`);
 
@@ -146,7 +83,9 @@ export default function UsageChart({
             <div
               key={i}
               className="w-1 rounded-full bg-[#222]"
-              style={{ height: `${Math.round(12 + Math.sin(i * 0.7) * 10 + Math.sin(i * 1.1) * 5)}px` }}
+              style={{
+                height: `${Math.round(12 + Math.sin(i * 0.7) * 10 + Math.sin(i * 1.1) * 5)}px`,
+              }}
             />
           ))}
         </div>
@@ -163,13 +102,7 @@ export default function UsageChart({
             <stop offset="0%" stopColor={color} stopOpacity={0.25} />
             <stop offset="100%" stopColor={color} stopOpacity={0} />
           </linearGradient>
-          <pattern
-            id={`gapPat-${label}`}
-            width="6"
-            height="6"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
+          <pattern id={`gapPat-${label}`} {...GAP_PATTERN_PROPS}>
             <line x1="0" y1="0" x2="0" y2="6" stroke="#333" strokeWidth="1.5" />
           </pattern>
         </defs>
@@ -192,12 +125,7 @@ export default function UsageChart({
           width={52}
         />
         <Tooltip
-          contentStyle={{
-            backgroundColor: "#111",
-            border: "1px solid #333",
-            borderRadius: 8,
-            color: "#ededed",
-          }}
+          contentStyle={TOOLTIP_STYLE}
           labelFormatter={(l) => formatTooltipTime(Number(l))}
           formatter={(v) => [fmt(Number(v)), label]}
         />

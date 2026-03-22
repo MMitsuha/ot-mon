@@ -14,6 +14,14 @@ import {
 } from "recharts";
 import { SpeedDataPoint } from "@/lib/types";
 import { formatSpeed } from "@/lib/format";
+import {
+  formatTickTime,
+  formatTooltipTime,
+  detectGaps,
+  computeDomain,
+  TOOLTIP_STYLE,
+  GAP_PATTERN_PROPS,
+} from "@/lib/chart";
 
 interface SpeedChartProps {
   data: SpeedDataPoint[];
@@ -23,97 +31,10 @@ interface SpeedChartProps {
   fullscreen?: boolean;
 }
 
-interface Gap {
-  x1: number;
-  x2: number;
-}
-
-function formatTickTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatTooltipTime(ts: number): string {
-  const d = new Date(ts);
-  return d.toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function generateTicks(start: number, end: number, count: number): number[] {
-  const step = (end - start) / count;
-  const ticks: number[] = [];
-  for (let i = 0; i <= count; i++) {
-    ticks.push(Math.round(start + step * i));
-  }
-  return ticks;
-}
-
-function getTickCount(hours: number): number {
-  if (hours <= 1) return 6;
-  if (hours <= 6) return 6;
-  if (hours <= 24) return 8;
-  return 7;
-}
-
-/** Expected bucket interval in ms, matching the API's getInterval() */
-function getExpectedIntervalMs(hours: number): number {
-  if (hours <= 1) return 1 * 60_000;
-  if (hours <= 6) return 2 * 60_000;
-  if (hours <= 24) return 5 * 60_000;
-  if (hours <= 168) return 30 * 60_000;
-  return 60 * 60_000;
-}
-
 interface ChartPoint {
   ts: number;
   totalDownSpeed: number | null;
   totalUpSpeed: number | null;
-}
-
-function buildChartData(
-  data: SpeedDataPoint[],
-  hours: number
-): { points: ChartPoint[]; gaps: Gap[] } {
-  if (data.length === 0) return { points: [], gaps: [] };
-
-  const raw = data.map((d) => ({
-    ts: new Date(d.timestamp).getTime(),
-    totalDownSpeed: d.totalDownSpeed as number | null,
-    totalUpSpeed: d.totalUpSpeed as number | null,
-  }));
-
-  const threshold = getExpectedIntervalMs(hours) * 2.5;
-  const gaps: Gap[] = [];
-  const points: ChartPoint[] = [raw[0]];
-
-  for (let i = 1; i < raw.length; i++) {
-    const delta = raw[i].ts - raw[i - 1].ts;
-    if (delta > threshold) {
-      gaps.push({ x1: raw[i - 1].ts, x2: raw[i].ts });
-      // Insert a null point just after the gap starts to break the line
-      points.push({
-        ts: raw[i - 1].ts + 1,
-        totalDownSpeed: null,
-        totalUpSpeed: null,
-      });
-    }
-    points.push(raw[i]);
-  }
-
-  // Trailing gap: last data point to now
-  const now = Date.now();
-  const lastTs = raw[raw.length - 1].ts;
-  if (now - lastTs > threshold) {
-    gaps.push({ x1: lastTs, x2: now });
-  }
-
-  return { points, gaps };
 }
 
 export default function SpeedChart({
@@ -123,34 +44,38 @@ export default function SpeedChart({
   hours,
   fullscreen,
 }: SpeedChartProps) {
-  const { points: chartData, gaps, domainMax: builtMax } = useMemo(
-    () => {
-      const result = buildChartData(data, hours);
-      // Extend domain to now so trailing gaps are visible
-      const now = result.points.length > 0
-        ? Math.max(result.points[result.points.length - 1].ts, ...result.gaps.map((g) => g.x2))
-        : 0;
-      return { ...result, domainMax: now };
-    },
-    [data, hours]
-  );
-
-  const { domainMin, domainMax, ticks } = useMemo(() => {
-    if (chartData.length === 0) {
+  const { chartData, gaps, domainMin, domainMax, ticks } = useMemo(() => {
+    if (data.length === 0) {
       return {
+        chartData: [] as ChartPoint[],
+        gaps: [],
         domainMin: 0,
         domainMax: 1,
         ticks: [] as number[],
       };
     }
-    const min = chartData[0].ts;
-    const max = builtMax;
-    return {
-      domainMin: min,
-      domainMax: max,
-      ticks: generateTicks(min, max, getTickCount(hours)),
-    };
-  }, [chartData, builtMax, hours]);
+
+    const raw: ChartPoint[] = data.map((d) => ({
+      ts: new Date(d.timestamp).getTime(),
+      totalDownSpeed: d.totalDownSpeed as number | null,
+      totalUpSpeed: d.totalUpSpeed as number | null,
+    }));
+
+    const timestamps = raw.map((r) => r.ts);
+    const { gaps, domainMax, nullInsertIndices } = detectGaps(timestamps, hours);
+
+    const points: ChartPoint[] = [];
+    for (let i = 0; i < raw.length; i++) {
+      if (nullInsertIndices.has(i)) {
+        points.push({ ts: raw[i - 1].ts + 1, totalDownSpeed: null, totalUpSpeed: null });
+      }
+      points.push(raw[i]);
+    }
+
+    const { domainMin, domainMax: dMax, ticks } = computeDomain(raw[0].ts, domainMax, hours);
+
+    return { chartData: points, gaps, domainMin, domainMax: dMax, ticks };
+  }, [data, hours]);
 
   if (data.length === 0) {
     return (
@@ -183,21 +108,8 @@ export default function SpeedChart({
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
             <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
           </linearGradient>
-          <pattern
-            id="gapPattern"
-            width="6"
-            height="6"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
-            <line
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="6"
-              stroke="#333"
-              strokeWidth="1.5"
-            />
+          <pattern id="gapPattern" {...GAP_PATTERN_PROPS}>
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#333" strokeWidth="1.5" />
           </pattern>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
@@ -215,15 +127,10 @@ export default function SpeedChart({
           tickFormatter={formatSpeed}
           stroke="#555"
           tick={{ fill: "#888", fontSize: 12 }}
-          width={80}
+          width={90}
         />
         <Tooltip
-          contentStyle={{
-            backgroundColor: "#111",
-            border: "1px solid #333",
-            borderRadius: 8,
-            color: "#ededed",
-          }}
+          contentStyle={TOOLTIP_STYLE}
           labelFormatter={(label) => formatTooltipTime(Number(label))}
           formatter={(value, name) => [
             formatSpeed(Number(value)),
