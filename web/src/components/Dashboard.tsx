@@ -145,6 +145,15 @@ export default function Dashboard() {
               <span className="inline-block h-2 w-2 rounded-full bg-[#8b5cf6]" />
               Upload
             </span>
+            <span className="flex items-center gap-1">
+              <svg width="8" height="8" viewBox="0 0 8 8" className="inline-block">
+                <pattern id="legendGap" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+                  <line x1="0" y1="0" x2="0" y2="4" stroke="#555" strokeWidth="1" />
+                </pattern>
+                <rect width="8" height="8" rx="1" fill="url(#legendGap)" />
+              </svg>
+              No data
+            </span>
           </div>
         </div>
         <SpeedChart data={data} avgDown={avgDown} avgUp={avgUp} hours={hours} />

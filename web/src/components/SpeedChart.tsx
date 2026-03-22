@@ -206,12 +206,6 @@ export default function SpeedChart({
             fillOpacity={1}
             stroke="#2a2a2a"
             strokeDasharray="4 2"
-            label={{
-              value: "No Data",
-              fill: "#555",
-              fontSize: 10,
-              position: "center",
-            }}
           />
         ))}
         {avgDown > 0 && (
