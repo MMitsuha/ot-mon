@@ -105,6 +105,13 @@ function buildChartData(
     points.push(raw[i]);
   }
 
+  // Trailing gap: last data point to now
+  const now = Date.now();
+  const lastTs = raw[raw.length - 1].ts;
+  if (now - lastTs > threshold) {
+    gaps.push({ x1: lastTs, x2: now });
+  }
+
   return { points, gaps };
 }
 
@@ -128,7 +135,7 @@ export default function SpeedChart({
       };
     }
     const min = chartData[0].ts;
-    const max = chartData[chartData.length - 1].ts;
+    const max = Date.now();
     return {
       domainMin: min,
       domainMax: max,
