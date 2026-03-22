@@ -51,3 +51,23 @@ export interface HardwareDataPoint {
   ioPeakTotalReadKbs: number;
   ioPeakTotalWriteKbs: number;
 }
+
+export interface DiskDataPoint {
+  timestamp: string;
+  sn: string;
+  total: number;
+  used: number;
+  rkbs: number;
+  wkbs: number;
+  rAwait: number;
+  wAwait: number;
+  svctm: number;
+  util: number;
+}
+
+export interface PerDiskSeries {
+  sn: string;
+  diskType: string;
+  total: number;
+  data: DiskDataPoint[];
+}

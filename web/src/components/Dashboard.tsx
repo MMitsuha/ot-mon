@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import SpeedChart from "./SpeedChart";
 import UsageChart from "./UsageChart";
+import DiskChart from "./DiskChart";
 import StatCard from "./StatCard";
-import { DeviceInfo, SpeedDataPoint, HardwareDataPoint } from "@/lib/types";
+import { DeviceInfo, SpeedDataPoint, HardwareDataPoint, PerDiskSeries } from "@/lib/types";
 import { formatSpeed, formatBytes, formatPercent, formatKbps } from "@/lib/format";
 
 const TIME_RANGES = [
@@ -20,6 +21,7 @@ export default function Dashboard() {
   const [hours, setHours] = useState(24);
   const [data, setData] = useState<SpeedDataPoint[]>([]);
   const [hwData, setHwData] = useState<HardwareDataPoint[]>([]);
+  const [diskData, setDiskData] = useState<PerDiskSeries[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -38,14 +40,16 @@ export default function Dashboard() {
     if (!selectedDevice) return;
     setLoading(true);
     try {
-      const [speedRes, hwRes] = await Promise.all([
+      const [speedRes, hwRes, diskRes] = await Promise.all([
         fetch(`/api/speed?device=${selectedDevice}&hours=${hours}`),
         fetch(`/api/hardware?device=${selectedDevice}&hours=${hours}`),
+        fetch(`/api/disks?device=${selectedDevice}&hours=${hours}`),
       ]);
-      const [speedData, hardwareData]: [SpeedDataPoint[], HardwareDataPoint[]] =
-        await Promise.all([speedRes.json(), hwRes.json()]);
+      const [speedData, hardwareData, perDiskData]: [SpeedDataPoint[], HardwareDataPoint[], PerDiskSeries[]] =
+        await Promise.all([speedRes.json(), hwRes.json(), diskRes.json()]);
       setData(speedData);
       setHwData(hardwareData);
+      setDiskData(perDiskData);
     } finally {
       setLoading(false);
     }
@@ -301,6 +305,19 @@ export default function Dashboard() {
         </div>
         <UsageChart data={ioChartData} color="#06b6d4" label="IO" avg={avgIoUtil} hours={hours} />
       </div>
+
+      {/* Per-Disk Charts */}
+      {diskData.map((disk) => (
+        <div key={disk.sn} className="rounded-xl border border-[#222] bg-[#111] p-5">
+          <DiskChart
+            sn={disk.sn}
+            diskType={disk.diskType}
+            totalCapacity={disk.total}
+            data={disk.data}
+            hours={hours}
+          />
+        </div>
+      ))}
     </div>
   );
 }
