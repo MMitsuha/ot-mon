@@ -1,14 +1,22 @@
 # ot-mon
 
-PPPoE 多拨监控守护进程。自动检测设备断线、通过 [srun-auto-dial](https://github.com/MMitsuha/srun-auto-dial) 重新拨号，并通过 Telegram 发送通知。附带 Web 仪表盘可视化速度数据。
+PPPoE 多拨监控守护进程。自动检测设备断线、通过 [srun-auto-dial](https://github.com/MMitsuha/srun-auto-dial) 重新拨号，并通过 Telegram 发送通知。附带 Web 仪表盘可视化速度及硬件状态。
 
 ## 功能
 
-- **状态轮询** — 定时轮询设备 PPPoE 多拨状态，检测断线自动重拨
+- **状态轮询** — 定时轮询设备 PPPoE 多拨状态及硬件状态（CPU/内存/磁盘），检测断线自动重拨
+- **断线阈值** — 连续检测到断线超过配置阈值后才触发重拨，防止网络波动误操作
 - **每日定时全量重拨** — 在指定时间替换所有线路 MAC 地址
 - **Telegram Bot** — 断线/重拨通知推送，支持 `/status`、`/relogin`、`/reloginall` 命令
-- **MongoDB 持久化** — 记录状态历史和重拨事件（30 天 TTL 自动清理）
-- **Web 仪表盘** — 实时上传/下载速度折线图，多设备切换，自动刷新
+- **MongoDB 持久化** — 记录状态历史、硬件状态和重拨事件（30 天 TTL 自动清理）
+- **Dry 模式** — 可按设备配置为仅监控，不执行重拨操作
+- **Web 仪表盘** — 实时可视化：
+  - 上传/下载速度折线图（含平均值参考线、数据缺失区域标记）
+  - CPU 使用率折线图
+  - 内存使用率折线图
+  - 磁盘使用率折线图
+  - 性能参数统计卡片（当前值 + 平均值）
+  - 多设备切换、时间范围选择、图表全屏、60 秒自动刷新
 
 ## 依赖
 
@@ -84,6 +92,7 @@ volumes:
 poll_interval_secs = 60         # 轮询间隔（秒）
 daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)
 log_level = "info"
+disconnect_threshold = 3        # 连续检测到断线多少次后才触发重拨（防止网络波动）
 
 [srun]
 url = "http://192.168.1.100:3000"   # srun-auto-dial 地址
@@ -100,6 +109,7 @@ chat_id = "YOUR_CHAT_ID"
 [[devices]]
 name = "设备1"
 ip = "192.168.1.101"
+dry = true                      # 仅监控，不执行重拨
 
 [[devices]]
 name = "设备2"
