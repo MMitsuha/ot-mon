@@ -120,7 +120,7 @@ function buildChartData(
 }
 
 function tooltipFormatter(value: number, name: string): [string, string] {
-  const series = SERIES.find((s) => s.key === name);
+  const series = SERIES.find((s) => s.key === name || s.label === name);
   if (!series) return [String(value), name];
   const label = series.label;
   if (series.axis === "left") return [formatKbps(value), label];
