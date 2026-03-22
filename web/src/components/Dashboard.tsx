@@ -85,13 +85,15 @@ export default function Dashboard() {
     return { avgDown: sumDown / data.length, avgUp: sumUp / data.length };
   }, [data]);
 
-  const { avgCpu, avgMem } = useMemo(() => {
-    if (hwData.length === 0) return { avgCpu: 0, avgMem: 0 };
+  const { avgCpu, avgMem, avgDisk } = useMemo(() => {
+    if (hwData.length === 0) return { avgCpu: 0, avgMem: 0, avgDisk: 0 };
     const sumCpu = hwData.reduce((s, d) => s + d.cpuUsage, 0);
     const sumMem = hwData.reduce((s, d) => s + d.memUsedPercent, 0);
+    const sumDisk = hwData.reduce((s, d) => s + d.diskUsedPercent, 0);
     return {
       avgCpu: sumCpu / hwData.length,
       avgMem: sumMem / hwData.length,
+      avgDisk: sumDisk / hwData.length,
     };
   }, [hwData]);
 
@@ -101,6 +103,10 @@ export default function Dashboard() {
   );
   const memChartData = useMemo(
     () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.memUsedPercent })),
+    [hwData]
+  );
+  const diskChartData = useMemo(
+    () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.diskUsedPercent })),
     [hwData]
   );
 
@@ -237,31 +243,43 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Hardware Charts */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <div className="rounded-xl border border-[#222] bg-[#111] p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="1" y="1" width="14" height="14" rx="2" />
-              <path d="M4 8h2l1-3 2 6 1-3h2" />
-            </svg>
-            <h2 className="text-sm font-semibold text-[#ededed]">CPU Usage</h2>
-          </div>
-          <UsageChart data={cpuChartData} color="#10b981" label="CPU" avg={avgCpu} />
+      {/* CPU Chart */}
+      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1" y="1" width="14" height="14" rx="2" />
+            <path d="M4 8h2l1-3 2 6 1-3h2" />
+          </svg>
+          <h2 className="text-sm font-semibold text-[#ededed]">CPU Usage</h2>
         </div>
+        <UsageChart data={cpuChartData} color="#10b981" label="CPU" avg={avgCpu} hours={hours} />
+      </div>
 
-        <div className="rounded-xl border border-[#222] bg-[#111] p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="1" width="4" height="14" rx="1" />
-              <rect x="10" y="1" width="4" height="14" rx="1" />
-              <line x1="4" y1="4" x2="4" y2="12" />
-              <line x1="12" y1="4" x2="12" y2="12" />
-            </svg>
-            <h2 className="text-sm font-semibold text-[#ededed]">Memory Usage</h2>
-          </div>
-          <UsageChart data={memChartData} color="#f59e0b" label="Memory" avg={avgMem} />
+      {/* Memory Chart */}
+      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="1" width="4" height="14" rx="1" />
+            <rect x="10" y="1" width="4" height="14" rx="1" />
+            <line x1="4" y1="4" x2="4" y2="12" />
+            <line x1="12" y1="4" x2="12" y2="12" />
+          </svg>
+          <h2 className="text-sm font-semibold text-[#ededed]">Memory Usage</h2>
         </div>
+        <UsageChart data={memChartData} color="#f59e0b" label="Memory" avg={avgMem} hours={hours} />
+      </div>
+
+      {/* Disk Chart */}
+      <div className="rounded-xl border border-[#222] bg-[#111] p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#ec4899" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="1" y="4" width="14" height="8" rx="2" />
+            <line x1="4" y1="7" x2="4" y2="9" />
+            <line x1="7" y1="7" x2="7" y2="9" />
+          </svg>
+          <h2 className="text-sm font-semibold text-[#ededed]">Disk Usage</h2>
+        </div>
+        <UsageChart data={diskChartData} color="#ec4899" label="Disk" avg={avgDisk} hours={hours} />
       </div>
     </div>
   );
