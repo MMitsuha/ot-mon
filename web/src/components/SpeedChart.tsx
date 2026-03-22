@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
   ReferenceLine,
+  ReferenceArea,
 } from "recharts";
 import { SpeedDataPoint } from "@/lib/types";
 import { formatSpeed } from "@/lib/format";
@@ -19,6 +20,11 @@ interface SpeedChartProps {
   avgDown: number;
   avgUp: number;
   hours: number;
+}
+
+interface Gap {
+  x1: number;
+  x2: number;
 }
 
 function formatTickTime(ts: number): string {
@@ -54,6 +60,31 @@ function getTickCount(hours: number): number {
   return 7;
 }
 
+/** Expected bucket interval in ms, matching the API's getInterval() */
+function getExpectedIntervalMs(hours: number): number {
+  if (hours <= 1) return 1 * 60_000;
+  if (hours <= 6) return 2 * 60_000;
+  if (hours <= 24) return 5 * 60_000;
+  if (hours <= 168) return 30 * 60_000;
+  return 60 * 60_000;
+}
+
+function detectGaps(
+  chartData: { ts: number }[],
+  hours: number
+): Gap[] {
+  if (chartData.length < 2) return [];
+  const threshold = getExpectedIntervalMs(hours) * 2.5;
+  const gaps: Gap[] = [];
+  for (let i = 1; i < chartData.length; i++) {
+    const delta = chartData[i].ts - chartData[i - 1].ts;
+    if (delta > threshold) {
+      gaps.push({ x1: chartData[i - 1].ts, x2: chartData[i].ts });
+    }
+  }
+  return gaps;
+}
+
 export default function SpeedChart({
   data,
   avgDown,
@@ -86,6 +117,8 @@ export default function SpeedChart({
     };
   }, [chartData, hours]);
 
+  const gaps = useMemo(() => detectGaps(chartData, hours), [chartData, hours]);
+
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-80 gap-3">
@@ -94,7 +127,9 @@ export default function SpeedChart({
             <div
               key={i}
               className="w-1.5 rounded-full bg-[#222]"
-              style={{ height: `${20 + Math.sin(i * 0.5) * 16 + Math.sin(i * 1.3) * 8}px` }}
+              style={{
+                height: `${20 + Math.sin(i * 0.5) * 16 + Math.sin(i * 1.3) * 8}px`,
+              }}
             />
           ))}
         </div>
@@ -115,6 +150,22 @@ export default function SpeedChart({
             <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.3} />
             <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
           </linearGradient>
+          <pattern
+            id="gapPattern"
+            width="6"
+            height="6"
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="6"
+              stroke="#333"
+              strokeWidth="1.5"
+            />
+          </pattern>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
         <XAxis
@@ -146,6 +197,23 @@ export default function SpeedChart({
             name === "totalDownSpeed" ? "Download" : "Upload",
           ]}
         />
+        {gaps.map((gap, i) => (
+          <ReferenceArea
+            key={`gap-${i}`}
+            x1={gap.x1}
+            x2={gap.x2}
+            fill="url(#gapPattern)"
+            fillOpacity={1}
+            stroke="#2a2a2a"
+            strokeDasharray="4 2"
+            label={{
+              value: "No Data",
+              fill: "#555",
+              fontSize: 10,
+              position: "center",
+            }}
+          />
+        ))}
         {avgDown > 0 && (
           <ReferenceLine
             y={avgDown}
