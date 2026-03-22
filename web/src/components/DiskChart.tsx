@@ -249,7 +249,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             tickFormatter={formatKbps}
             stroke="#555"
             tick={{ fill: "#888", fontSize: 11 }}
-            width={60}
+            width={80}
           />
           <YAxis
             yAxisId="right"
