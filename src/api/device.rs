@@ -1,4 +1,6 @@
-use crate::api::types::{EncryptedRequest, HardwareStatusResponse, LoginInfoResponse, PppoeStatusResponse};
+use crate::api::types::{
+    EncryptedRequest, HardwareStatusResponse, LoginInfoResponse, PppoeStatusResponse,
+};
 use crate::error::{OtMonError, Result};
 use md5::{Digest, Md5};
 use reqwest::Client;
@@ -64,10 +66,7 @@ impl DeviceClient {
     pub async fn get_hardware_status(&self, device_ip: &str) -> Result<HardwareStatusResponse> {
         // 1. 获取 SN
         let login_info = self.get_login_info(device_ip).await?;
-        let sn = login_info
-            .result
-            .map(|r| r.sn)
-            .unwrap_or_default();
+        let sn = login_info.result.map(|r| r.sn).unwrap_or_default();
         if sn.is_empty() {
             return Err(OtMonError::Config(format!(
                 "设备 {} login_info 返回空 SN",
@@ -149,7 +148,7 @@ impl DeviceClient {
 
 /// 生成 site_cookie JWT (HS256, key="guyf131gIS2g1")
 fn generate_site_cookie(sn: &str) -> Result<String> {
-    use jsonwebtoken::{encode, EncodingKey, Header};
+    use jsonwebtoken::{EncodingKey, Header, encode};
 
     const JWT_KEY: &[u8] = b"guyf131gIS2g1";
 
