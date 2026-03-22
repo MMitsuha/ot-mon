@@ -62,7 +62,7 @@ export default function UsageChart({
             <div
               key={i}
               className="w-1 rounded-full bg-[#222]"
-              style={{ height: `${12 + Math.sin(i * 0.7) * 10 + Math.sin(i * 1.1) * 5}px` }}
+              style={{ height: `${Math.round(12 + Math.sin(i * 0.7) * 10 + Math.sin(i * 1.1) * 5)}px` }}
             />
           ))}
         </div>

@@ -161,7 +161,7 @@ export default function SpeedChart({
               key={i}
               className="w-1.5 rounded-full bg-[#222]"
               style={{
-                height: `${20 + Math.sin(i * 0.5) * 16 + Math.sin(i * 1.3) * 8}px`,
+                height: `${Math.round(20 + Math.sin(i * 0.5) * 16 + Math.sin(i * 1.3) * 8)}px`,
               }}
             />
           ))}
