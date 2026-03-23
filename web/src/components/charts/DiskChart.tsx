@@ -52,9 +52,9 @@ const SERIES = [
   { key: "util", label: "Util %", color: "#06b6d4", axis: "right", type: "line", defaultOn: false },
 ] as const;
 
-function tooltipFormatter(value: number, name: string): [string, string] {
+function tooltipFormatter(value: number, name: string): [string, string] | null {
   const series = SERIES.find((s) => s.key === name || s.label === name);
-  if (!series) return [String(value), name];
+  if (!series) return null;
   const label = series.label;
   if (series.axis === "left") return [formatKbps(value), label];
   if (series.key === "util") return [formatPercent(value), label];
