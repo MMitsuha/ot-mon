@@ -251,7 +251,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
               key={`gap-${i}`}
               x1={gap.x1}
               x2={gap.x2}
-              yAxisId="left"
+              yAxisId="right2"
               fill={`url(#dgap-${sn})`}
               fillOpacity={1}
               stroke="#2a2a2a"
@@ -349,6 +349,15 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             strokeWidth={1.5}
             dot={false}
             hide={hiddenSeries.has("util")}
+          />
+          <Line
+            yAxisId="right2"
+            dataKey={() => 0}
+            stroke="none"
+            dot={false}
+            activeDot={false}
+            legendType="none"
+            isAnimationActive={false}
           />
         </ComposedChart>
       </ResponsiveContainer>
