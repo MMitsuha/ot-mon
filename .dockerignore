@@ -1,6 +1,7 @@
 target/
 .git/
 .github/
+.claude/
 config.toml
 *.md
 .dockerignore

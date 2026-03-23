@@ -1,2 +1,13 @@
+# rust
 /target
+
+# config
 config.toml
+
+# claude
+.claude/
+
+# misc
+.DS_Store
+.env
+*.pem
