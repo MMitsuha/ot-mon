@@ -24,13 +24,10 @@ export async function GET(request: NextRequest) {
       { $match: matchStage },
       {
         $addFields: {
+          // use current usage
           cpuUsage: {
-            $avg: {
-              $map: {
-                input: "$cpu",
-                as: "c",
-                in: { $toDouble: "$$c.usage" },
-              },
+            $toDouble: {
+              $ifNull: [{ $arrayElemAt: ["$cpu.usage", 0] }, 0],
             },
           },
           memTotal: { $arrayElemAt: ["$mem.total", 0] },
