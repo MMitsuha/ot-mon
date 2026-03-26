@@ -55,15 +55,14 @@ export default function Dashboard() {
     };
   }, [speedData]);
 
-  const { avgCpu, avgMemUsed, avgMemPercent } = useMemo(() => {
+  const { avgCpu, avgMemUsed } = useMemo(() => {
     if (hwData.length === 0) {
-      return { avgCpu: 0, avgMemUsed: 0, avgMemPercent: 0 };
+      return { avgCpu: 0, avgMemUsed: 0 };
     }
     const n = hwData.length;
     return {
       avgCpu: hwData.reduce((s, d) => s + d.cpuUsage, 0) / n,
       avgMemUsed: hwData.reduce((s, d) => s + d.memUsed, 0) / n,
-      avgMemPercent: hwData.reduce((s, d) => s + d.memUsedPercent, 0) / n,
     };
   }, [hwData]);
 
@@ -160,7 +159,38 @@ export default function Dashboard() {
           }`}
       >
         <div className="mb-4 flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">Speed</h2>
+          <div className="flex items-center gap-2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path
+                d="M5 2v8"
+                stroke="var(--color-download)"
+                strokeWidth="1.5"
+              />
+              <polyline
+                points="2.5 7.5 5 10 7.5 7.5"
+                stroke="var(--color-download)"
+                strokeWidth="1.5"
+              />
+              <path
+                d="M11 14V6"
+                stroke="var(--color-upload)"
+                strokeWidth="1.5"
+              />
+              <polyline
+                points="8.5 8.5 11 6 13.5 8.5"
+                stroke="var(--color-upload)"
+                strokeWidth="1.5"
+              />
+            </svg>
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Speed</h2>
+          </div>
           <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
             <span className="flex items-center gap-1">
               <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-download)]" />
