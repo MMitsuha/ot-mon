@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useEffect, useCallback } from "react";
+import { useMemo } from "react";
 import SpeedChart from "./charts/SpeedChart";
 import UsageChart from "./charts/UsageChart";
 import DiskChart from "./charts/DiskChart";
@@ -22,25 +22,6 @@ export default function Dashboard() {
     diskData,
     isLoading,
   } = useDashboardData();
-
-  // Fullscreen state for speed chart
-  const chartRef = useRef<HTMLDivElement>(null);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", onFs);
-    return () => document.removeEventListener("fullscreenchange", onFs);
-  }, []);
-
-  const toggleFullscreen = useCallback(() => {
-    if (!chartRef.current) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      chartRef.current.requestFullscreen();
-    }
-  }, []);
 
   // Derived stats
   const latest = speedData.length > 0 ? speedData[speedData.length - 1] : null;
@@ -68,16 +49,16 @@ export default function Dashboard() {
 
   const cpuChartData = useMemo(
     () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.cpuUsage })),
-    [hwData]
+    [hwData],
   );
   const memChartData = useMemo(
     () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.memUsed })),
-    [hwData]
+    [hwData],
   );
   const memChartDomain = useMemo<[number, number]>(() => {
     const max = hwData.reduce(
       (currentMax, d) => Math.max(currentMax, d.memTotal, d.memUsed),
-      0
+      0,
     );
     return [0, Math.max(max, 1)];
   }, [hwData]);
@@ -108,10 +89,11 @@ export default function Dashboard() {
             <button
               key={r.hours}
               onClick={() => setHours(r.hours)}
-              className={`px-4 py-2 text-sm transition-all duration-200 ${hours === r.hours
-                ? "bg-[var(--text-primary)] text-[var(--color-background)]"
-                : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#1a1a1a]"
-                }`}
+              className={`px-4 py-2 text-sm transition-all duration-200 ${
+                hours === r.hours
+                  ? "bg-[var(--text-primary)] text-[var(--color-background)]"
+                  : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#1a1a1a]"
+              }`}
             >
               {r.label}
             </button>
@@ -152,46 +134,34 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Speed Chart — special: supports fullscreen */}
-      <div
-        ref={chartRef}
-        className={`rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 transition-all duration-300 ${isFullscreen ? "flex flex-col h-screen w-screen" : ""
-          }`}
-      >
-        <div className="mb-4 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 16 16"
-              fill="none"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path
-                d="M5 2v8"
-                stroke="var(--color-download)"
-                strokeWidth="1.5"
-              />
-              <polyline
-                points="2.5 7.5 5 10 7.5 7.5"
-                stroke="var(--color-download)"
-                strokeWidth="1.5"
-              />
-              <path
-                d="M11 14V6"
-                stroke="var(--color-upload)"
-                strokeWidth="1.5"
-              />
-              <polyline
-                points="8.5 8.5 11 6 13.5 8.5"
-                stroke="var(--color-upload)"
-                strokeWidth="1.5"
-              />
-            </svg>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Speed</h2>
-          </div>
-          <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
+      {/* Speed Chart */}
+      <ChartCard
+        title="Speed"
+        icon={
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 2v8" stroke="var(--color-download)" strokeWidth="1.5" />
+            <polyline
+              points="2.5 7.5 5 10 7.5 7.5"
+              stroke="var(--color-download)"
+              strokeWidth="1.5"
+            />
+            <path d="M11 14V6" stroke="var(--color-upload)" strokeWidth="1.5" />
+            <polyline
+              points="8.5 8.5 11 6 13.5 8.5"
+              stroke="var(--color-upload)"
+              strokeWidth="1.5"
+            />
+          </svg>
+        }
+        legend={
+          <>
             <span className="flex items-center gap-1">
               <span className="inline-block h-2 w-2 rounded-full bg-[var(--color-download)]" />
               Download
@@ -201,38 +171,37 @@ export default function Dashboard() {
               Upload
             </span>
             <span className="flex items-center gap-1">
-              <svg width="8" height="8" viewBox="0 0 8 8" className="inline-block">
-                <pattern id="legendGap" width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-                  <line x1="0" y1="0" x2="0" y2="4" stroke="var(--text-dim)" strokeWidth="1" />
+              <svg
+                width="8"
+                height="8"
+                viewBox="0 0 8 8"
+                className="inline-block"
+              >
+                <pattern
+                  id="legendGap"
+                  width="4"
+                  height="4"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(45)"
+                >
+                  <line
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="4"
+                    stroke="var(--text-dim)"
+                    strokeWidth="1"
+                  />
                 </pattern>
                 <rect width="8" height="8" rx="1" fill="url(#legendGap)" />
               </svg>
               No data
             </span>
-          </div>
-          <button
-            onClick={toggleFullscreen}
-            className="ml-auto rounded-lg p-1.5 text-[var(--text-dim)] transition-colors duration-200 hover:bg-[#1a1a1a] hover:text-[var(--text-primary)]"
-            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
-          >
-            {isFullscreen ? (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="6 1 6 6 1 6" />
-                <polyline points="10 15 10 10 15 10" />
-                <line x1="1" y1="6" x2="6" y2="1" />
-                <line x1="15" y1="10" x2="10" y2="15" />
-              </svg>
-            ) : (
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="10 1 15 1 15 6" />
-                <polyline points="6 15 1 15 1 10" />
-                <line x1="15" y1="1" x2="10" y2="6" />
-                <line x1="1" y1="15" x2="6" y2="10" />
-              </svg>
-            )}
-          </button>
-        </div>
-        <div className={isFullscreen ? "flex-1 min-h-0" : ""}>
+          </>
+        }
+        fullscreenable
+      >
+        {({ isFullscreen }) => (
           <SpeedChart
             data={speedData}
             avgDown={avgDown}
@@ -241,14 +210,23 @@ export default function Dashboard() {
             fullscreen={isFullscreen}
             yAxisWidth={85}
           />
-        </div>
-      </div>
+        )}
+      </ChartCard>
 
       {/* CPU Chart */}
       <ChartCard
         title="CPU Usage"
         icon={
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-cpu)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="var(--color-cpu)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="1" y="1" width="14" height="14" rx="2" />
             <path d="M4 8h2l1-3 2 6 1-3h2" />
           </svg>
@@ -268,7 +246,16 @@ export default function Dashboard() {
       <ChartCard
         title="Memory Usage"
         icon={
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="var(--color-memory)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="none"
+            stroke="var(--color-memory)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="2" y="1" width="4" height="14" rx="1" />
             <rect x="10" y="1" width="4" height="14" rx="1" />
             <line x1="4" y1="4" x2="4" y2="12" />
@@ -314,7 +301,16 @@ export default function Dashboard() {
               </div>
             }
             icon={
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="none"
+                stroke="#888"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <rect x="1" y="4" width="14" height="8" rx="2" />
                 <line x1="4" y1="7" x2="4" y2="9" />
                 <line x1="7" y1="7" x2="7" y2="9" />

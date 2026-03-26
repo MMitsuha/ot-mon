@@ -20,6 +20,6 @@ export async function GET() {
     devices.map((d) => ({
       device_ip: d._id,
       device_name: d.device_name,
-    }))
+    })),
   );
 }

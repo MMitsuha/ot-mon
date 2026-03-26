@@ -64,17 +64,28 @@ export default function SpeedChart({
     }));
 
     const timestamps = raw.map((r) => r.ts);
-    const { gaps, domainMax, nullInsertIndices } = detectGaps(timestamps, hours);
+    const { gaps, domainMax, nullInsertIndices } = detectGaps(
+      timestamps,
+      hours,
+    );
 
     const points: ChartPoint[] = [];
     for (let i = 0; i < raw.length; i++) {
       if (nullInsertIndices.has(i)) {
-        points.push({ ts: raw[i - 1].ts + 1, totalDownSpeed: null, totalUpSpeed: null });
+        points.push({
+          ts: raw[i - 1].ts + 1,
+          totalDownSpeed: null,
+          totalUpSpeed: null,
+        });
       }
       points.push(raw[i]);
     }
 
-    const { domainMin, domainMax: dMax, ticks } = computeDomain(raw[0].ts, domainMax, hours);
+    const {
+      domainMin,
+      domainMax: dMax,
+      ticks,
+    } = computeDomain(raw[0].ts, domainMax, hours);
 
     return { chartData: points, gaps, domainMin, domainMax: dMax, ticks };
   }, [data, hours]);

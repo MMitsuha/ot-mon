@@ -2,7 +2,12 @@
 
 import useSWR from "swr";
 import { useState } from "react";
-import type { DeviceInfo, SpeedDataPoint, HardwareDataPoint, PerDiskSeries } from "@/lib/types";
+import type {
+  DeviceInfo,
+  SpeedDataPoint,
+  HardwareDataPoint,
+  PerDiskSeries,
+} from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -29,22 +34,28 @@ export function useDashboardData() {
 
   const enabled = !!selectedDevice;
 
-  const { data: speedData = [], isLoading: speedLoading } = useSWR<SpeedDataPoint[]>(
+  const { data: speedData = [], isLoading: speedLoading } = useSWR<
+    SpeedDataPoint[]
+  >(
     enabled ? `/api/speed?device=${selectedDevice}&hours=${hours}` : null,
     fetcher,
-    { refreshInterval: 60_000 }
+    { refreshInterval: 60_000 },
   );
 
-  const { data: hwData = [], isLoading: hwLoading } = useSWR<HardwareDataPoint[]>(
+  const { data: hwData = [], isLoading: hwLoading } = useSWR<
+    HardwareDataPoint[]
+  >(
     enabled ? `/api/hardware?device=${selectedDevice}&hours=${hours}` : null,
     fetcher,
-    { refreshInterval: 60_000 }
+    { refreshInterval: 60_000 },
   );
 
-  const { data: diskData = [], isLoading: diskLoading } = useSWR<PerDiskSeries[]>(
+  const { data: diskData = [], isLoading: diskLoading } = useSWR<
+    PerDiskSeries[]
+  >(
     enabled ? `/api/disks?device=${selectedDevice}&hours=${hours}` : null,
     fetcher,
-    { refreshInterval: 60_000 }
+    { refreshInterval: 60_000 },
   );
 
   return {

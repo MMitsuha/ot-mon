@@ -60,7 +60,10 @@ export default function UsageChart({
       value: d.value as number | null,
     }));
     const timestamps = raw.map((r) => r.ts);
-    const { gaps, domainMax, nullInsertIndices } = detectGaps(timestamps, hours);
+    const { gaps, domainMax, nullInsertIndices } = detectGaps(
+      timestamps,
+      hours,
+    );
 
     const points: { ts: number; value: number | null }[] = [];
     for (let i = 0; i < raw.length; i++) {

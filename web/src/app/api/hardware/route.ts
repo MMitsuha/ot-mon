@@ -181,10 +181,7 @@ export async function GET(request: NextRequest) {
               {
                 $multiply: [
                   {
-                    $divide: [
-                      "$diskUsed",
-                      { $max: ["$diskTotal", 1] },
-                    ],
+                    $divide: ["$diskUsed", { $max: ["$diskTotal", 1] }],
                   },
                   100,
                 ],

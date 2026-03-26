@@ -25,9 +25,15 @@ export function formatTooltipTime(ts: number): string {
   });
 }
 
-export function generateTicks(start: number, end: number, count: number): number[] {
+export function generateTicks(
+  start: number,
+  end: number,
+  count: number,
+): number[] {
   const step = (end - start) / count;
-  return Array.from({ length: count + 1 }, (_, i) => Math.round(start + step * i));
+  return Array.from({ length: count + 1 }, (_, i) =>
+    Math.round(start + step * i),
+  );
 }
 
 export function getTickCount(hours: number): number {
@@ -52,7 +58,7 @@ export function getExpectedIntervalMs(hours: number): number {
  */
 export function detectGaps(
   timestamps: number[],
-  hours: number
+  hours: number,
 ): { gaps: Gap[]; domainMax: number; nullInsertIndices: Set<number> } {
   const threshold = getExpectedIntervalMs(hours) * 2.5;
   const gaps: Gap[] = [];
@@ -72,9 +78,8 @@ export function detectGaps(
     gaps.push({ x1: lastTs, x2: now });
   }
 
-  const domainMax = gaps.length > 0
-    ? Math.max(lastTs, ...gaps.map((g) => g.x2))
-    : lastTs;
+  const domainMax =
+    gaps.length > 0 ? Math.max(lastTs, ...gaps.map((g) => g.x2)) : lastTs;
 
   return { gaps, domainMax, nullInsertIndices };
 }
@@ -82,7 +87,7 @@ export function detectGaps(
 export function computeDomain(
   firstTs: number,
   domainMax: number,
-  hours: number
+  hours: number,
 ): ChartDomain {
   return {
     domainMin: firstTs,
