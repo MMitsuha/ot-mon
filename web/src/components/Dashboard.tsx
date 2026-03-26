@@ -55,12 +55,15 @@ export default function Dashboard() {
     };
   }, [speedData]);
 
-  const { avgCpu, avgMem } = useMemo(() => {
-    if (hwData.length === 0) return { avgCpu: 0, avgMem: 0 };
+  const { avgCpu, avgMemUsed, avgMemPercent } = useMemo(() => {
+    if (hwData.length === 0) {
+      return { avgCpu: 0, avgMemUsed: 0, avgMemPercent: 0 };
+    }
     const n = hwData.length;
     return {
       avgCpu: hwData.reduce((s, d) => s + d.cpuUsage, 0) / n,
-      avgMem: hwData.reduce((s, d) => s + d.memUsed, 0) / n,
+      avgMemUsed: hwData.reduce((s, d) => s + d.memUsed, 0) / n,
+      avgMemPercent: hwData.reduce((s, d) => s + d.memUsedPercent, 0) / n,
     };
   }, [hwData]);
 
@@ -145,8 +148,8 @@ export default function Dashboard() {
         />
         <StatCard
           label="Memory"
-          value={latestHw ? formatPercent(latestHw.memUsedPercent) : "-"}
-          sub={latestHw ? `${formatBytes(latestHw.memUsed)} / ${formatBytes(latestHw.memTotal)}` : undefined}
+          value={latestHw ? formatBytes(latestHw.memUsed) : "-"}
+          sub={hwData.length > 0 ? `Avg ${formatBytes(avgMemUsed)}` : undefined}
         />
       </div>
 
@@ -252,7 +255,7 @@ export default function Dashboard() {
           data={memChartData}
           color="var(--color-memory)"
           label="Memory"
-          avg={avgMem}
+          avg={avgMemUsed}
           hours={hours}
           domain={memChartDomain}
           formatter={formatBytes}
