@@ -5,6 +5,7 @@ import SpeedChart from "./charts/SpeedChart";
 import UsageChart from "./charts/UsageChart";
 import DiskChart from "./charts/DiskChart";
 import ChartCard from "./ChartCard";
+import CapacityBar from "./CapacityBar";
 import StatCard from "./StatCard";
 import { useDashboardData, TIME_RANGES } from "@/hooks/use-dashboard-data";
 import { formatSpeed, formatBytes, formatPercent } from "@/lib/format";
@@ -222,22 +223,48 @@ export default function Dashboard() {
             <line x1="12" y1="4" x2="12" y2="12" />
           </svg>
         }
+        actions={
+          latestHw ? (
+            <CapacityBar used={latestHw.memUsed} total={latestHw.memTotal} />
+          ) : null
+        }
       >
         <UsageChart data={memChartData} color="var(--color-memory)" label="Memory" avg={avgMem} hours={hours} />
       </ChartCard>
 
       {/* Per-Disk Charts */}
-      {diskData.map((disk) => (
-        <div key={disk.sn} className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
-          <DiskChart
-            sn={disk.sn}
-            diskType={disk.diskType}
-            totalCapacity={disk.total}
-            data={disk.data}
-            hours={hours}
-          />
-        </div>
-      ))}
+      {diskData.map((disk) => {
+        const latestDiskUsed =
+          disk.data.length > 0 ? disk.data[disk.data.length - 1].used : 0;
+
+        return (
+          <ChartCard
+            key={disk.sn}
+            title={
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="min-w-0 truncate font-mono text-[#ededed]">
+                  {disk.sn}
+                </span>
+                {disk.diskType && (
+                  <span className="rounded bg-[#222] px-1.5 py-0.5 text-[10px] font-medium uppercase text-[#888]">
+                    {disk.diskType}
+                  </span>
+                )}
+              </div>
+            }
+            icon={
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="1" y="4" width="14" height="8" rx="2" />
+                <line x1="4" y1="7" x2="4" y2="9" />
+                <line x1="7" y1="7" x2="7" y2="9" />
+              </svg>
+            }
+            actions={<CapacityBar used={latestDiskUsed} total={disk.total} />}
+          >
+            <DiskChart data={disk.data} hours={hours} />
+          </ChartCard>
+        );
+      })}
     </div>
   );
 }

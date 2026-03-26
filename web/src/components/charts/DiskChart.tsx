@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useId } from "react";
 import {
   ComposedChart,
   Area,
@@ -15,7 +15,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { DiskDataPoint } from "@/lib/types";
-import { formatKbps, formatMs, formatPercent, formatBytes } from "@/lib/format";
+import { formatKbps, formatMs, formatPercent } from "@/lib/format";
 import {
   detectGaps,
   computeDomain,
@@ -26,9 +26,6 @@ import {
 } from "@/lib/chart";
 
 interface DiskChartProps {
-  sn: string;
-  diskType: string;
-  totalCapacity: number;
   data: DiskDataPoint[];
   hours: number;
 }
@@ -61,10 +58,11 @@ function tooltipFormatter(value: number, name: string): [string, string] | null 
   return [formatMs(value), label];
 }
 
-export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: DiskChartProps) {
+export default function DiskChart({ data, hours }: DiskChartProps) {
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(
     () => new Set(SERIES.filter((s) => !s.defaultOn).map((s) => s.key))
   );
+  const chartId = useId().replace(/:/g, "");
 
   const toggleSeries = useCallback((key: string) => {
     setHiddenSeries((prev) => {
@@ -121,12 +119,8 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
     };
   }, [data]);
 
-  // Latest used for capacity bar
-  const latestUsed = data.length > 0 ? data[data.length - 1].used : 0;
-  const usedPercent = totalCapacity > 0 ? (latestUsed / totalCapacity) * 100 : 0;
-
-  if (data.length === 0) {
-    return (
+  const content =
+    data.length === 0 ? (
       <div className="flex flex-col items-center justify-center h-48 gap-2">
         <div className="flex items-end gap-0.5">
           {Array.from({ length: 16 }).map((_, i) => (
@@ -139,56 +133,20 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
         </div>
         <p className="text-xs text-[#555]">Waiting for data...</p>
       </div>
-    );
-  }
-
-  return (
-    <div>
-      {/* Header: SN + type badge + capacity bar */}
-      <div className="mb-3 flex items-center gap-3 flex-nowrap min-w-0">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#888" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="1" y="4" width="14" height="8" rx="2" />
-          <line x1="4" y1="7" x2="4" y2="9" />
-          <line x1="7" y1="7" x2="7" y2="9" />
-        </svg>
-        <span className="text-sm font-semibold text-[#ededed] font-mono truncate min-w-0">{sn}</span>
-        {diskType && (
-          <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-[#222] text-[#888] uppercase">
-            {diskType}
-          </span>
-        )}
-        {/* Capacity bar */}
-        <div className="ml-auto flex items-center gap-2 shrink-0">
-          <span className="text-xs text-[#666] whitespace-nowrap">
-            {formatBytes(latestUsed)} / {formatBytes(totalCapacity)}
-          </span>
-          <div className="h-2 w-24 rounded-full bg-[#222] overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all duration-500"
-              style={{
-                width: `${Math.min(usedPercent, 100)}%`,
-                backgroundColor: usedPercent > 90 ? "#ef4444" : usedPercent > 70 ? "#f59e0b" : "#10b981",
-              }}
-            />
-          </div>
-          <span className="text-xs text-[#666]">{usedPercent.toFixed(1)}%</span>
-        </div>
-      </div>
-
-      {/* Chart */}
+    ) : (
       <ResponsiveContainer width="100%" height={220}>
         <ComposedChart data={chartData}>
           <defs>
-            <linearGradient id={`dg-rkbs-${sn}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`dg-rkbs-${chartId}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#0ea5e9" stopOpacity={0.25} />
               <stop offset="100%" stopColor="#0ea5e9" stopOpacity={0} />
             </linearGradient>
-            <linearGradient id={`dg-wkbs-${sn}`} x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`dg-wkbs-${chartId}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.25} />
               <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0} />
             </linearGradient>
             <pattern
-              id={`dgap-${sn}`}
+              id={`dgap-${chartId}`}
               {...GAP_PATTERN_PROPS}
             >
               <line x1="0" y1="0" x2="0" y2="6" stroke="#333" strokeWidth="1.5" />
@@ -252,7 +210,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
               x1={gap.x1}
               x2={gap.x2}
               yAxisId="right2"
-              fill={`url(#dgap-${sn})`}
+              fill={`url(#dgap-${chartId})`}
               fillOpacity={1}
               stroke="#2a2a2a"
               strokeDasharray="4 2"
@@ -290,7 +248,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             dataKey="rkbs"
             name="Read"
             stroke="#0ea5e9"
-            fill={`url(#dg-rkbs-${sn})`}
+            fill={`url(#dg-rkbs-${chartId})`}
             strokeWidth={1.5}
             dot={false}
             hide={hiddenSeries.has("rkbs")}
@@ -301,7 +259,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
             dataKey="wkbs"
             name="Write"
             stroke="#8b5cf6"
-            fill={`url(#dg-wkbs-${sn})`}
+            fill={`url(#dg-wkbs-${chartId})`}
             strokeWidth={1.5}
             dot={false}
             hide={hiddenSeries.has("wkbs")}
@@ -361,6 +319,7 @@ export default function DiskChart({ sn, diskType, totalCapacity, data, hours }: 
           />
         </ComposedChart>
       </ResponsiveContainer>
-    </div>
-  );
+    );
+
+  return content;
 }
