@@ -28,6 +28,10 @@ import {
 interface DiskChartProps {
   data: DiskDataPoint[];
   hours: number;
+  yAxisWidth?: {
+    left?: number;
+    right?: number;
+  };
 }
 
 interface ChartPoint {
@@ -58,11 +62,17 @@ function tooltipFormatter(value: number, name: string): [string, string] | null 
   return [formatMs(value), label];
 }
 
-export default function DiskChart({ data, hours }: DiskChartProps) {
+export default function DiskChart({
+  data,
+  hours,
+  yAxisWidth,
+}: DiskChartProps) {
   const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(
     () => new Set(SERIES.filter((s) => !s.defaultOn).map((s) => s.key))
   );
   const chartId = useId().replace(/:/g, "");
+  const leftYAxisWidth = yAxisWidth?.left ?? 90;
+  const rightYAxisWidth = yAxisWidth?.right ?? 52;
 
   const toggleSeries = useCallback((key: string) => {
     setHiddenSeries((prev) => {
@@ -168,7 +178,7 @@ export default function DiskChart({ data, hours }: DiskChartProps) {
             tickFormatter={formatKbps}
             stroke="#555"
             tick={{ fill: "#888", fontSize: 11 }}
-            width={90}
+            width={leftYAxisWidth}
           />
           <YAxis
             yAxisId="right"
@@ -176,7 +186,7 @@ export default function DiskChart({ data, hours }: DiskChartProps) {
             tickFormatter={formatMs}
             stroke="#555"
             tick={{ fill: "#888", fontSize: 11 }}
-            width={52}
+            width={rightYAxisWidth}
           />
           <YAxis
             yAxisId="right2"

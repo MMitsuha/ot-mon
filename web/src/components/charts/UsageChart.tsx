@@ -30,6 +30,7 @@ interface UsageChartProps {
   unit?: string;
   domain?: [number, number];
   formatter?: (v: number) => string;
+  yAxisWidth?: number;
 }
 
 export default function UsageChart({
@@ -41,6 +42,7 @@ export default function UsageChart({
   unit = "%",
   domain = [0, 100],
   formatter,
+  yAxisWidth = 52,
 }: UsageChartProps) {
   const { chartData, gaps, domainMin, domainMax, ticks } = useMemo(() => {
     if (data.length === 0) {
@@ -122,7 +124,7 @@ export default function UsageChart({
           tickFormatter={fmt}
           stroke="#555"
           tick={{ fill: "#888", fontSize: 11 }}
-          width={52}
+          width={yAxisWidth}
         />
         <Tooltip
           contentStyle={TOOLTIP_STYLE}

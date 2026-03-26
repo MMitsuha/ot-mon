@@ -29,6 +29,7 @@ interface SpeedChartProps {
   avgUp: number;
   hours: number;
   fullscreen?: boolean;
+  yAxisWidth?: number;
 }
 
 interface ChartPoint {
@@ -43,6 +44,7 @@ export default function SpeedChart({
   avgUp,
   hours,
   fullscreen,
+  yAxisWidth = 85,
 }: SpeedChartProps) {
   const { chartData, gaps, domainMin, domainMax, ticks } = useMemo(() => {
     if (data.length === 0) {
@@ -127,7 +129,7 @@ export default function SpeedChart({
           tickFormatter={formatSpeed}
           stroke="#555"
           tick={{ fill: "#888", fontSize: 12 }}
-          width={90}
+          width={yAxisWidth}
         />
         <Tooltip
           contentStyle={TOOLTIP_STYLE}

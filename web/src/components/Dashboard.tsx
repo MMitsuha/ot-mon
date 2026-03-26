@@ -60,7 +60,7 @@ export default function Dashboard() {
     const n = hwData.length;
     return {
       avgCpu: hwData.reduce((s, d) => s + d.cpuUsage, 0) / n,
-      avgMem: hwData.reduce((s, d) => s + d.memUsedPercent, 0) / n,
+      avgMem: hwData.reduce((s, d) => s + d.memUsed, 0) / n,
     };
   }, [hwData]);
 
@@ -69,9 +69,16 @@ export default function Dashboard() {
     [hwData]
   );
   const memChartData = useMemo(
-    () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.memUsedPercent })),
+    () => hwData.map((d) => ({ timestamp: d.timestamp, value: d.memUsed })),
     [hwData]
   );
+  const memChartDomain = useMemo<[number, number]>(() => {
+    const max = hwData.reduce(
+      (currentMax, d) => Math.max(currentMax, d.memTotal, d.memUsed),
+      0
+    );
+    return [0, Math.max(max, 1)];
+  }, [hwData]);
 
   return (
     <div className="space-y-6">
@@ -99,11 +106,10 @@ export default function Dashboard() {
             <button
               key={r.hours}
               onClick={() => setHours(r.hours)}
-              className={`px-4 py-2 text-sm transition-all duration-200 ${
-                hours === r.hours
-                  ? "bg-[var(--text-primary)] text-[var(--color-background)]"
-                  : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#1a1a1a]"
-              }`}
+              className={`px-4 py-2 text-sm transition-all duration-200 ${hours === r.hours
+                ? "bg-[var(--text-primary)] text-[var(--color-background)]"
+                : "bg-[var(--card-bg)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[#1a1a1a]"
+                }`}
             >
               {r.label}
             </button>
@@ -147,9 +153,8 @@ export default function Dashboard() {
       {/* Speed Chart — special: supports fullscreen */}
       <div
         ref={chartRef}
-        className={`rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 transition-all duration-300 ${
-          isFullscreen ? "flex flex-col h-screen w-screen" : ""
-        }`}
+        className={`rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5 transition-all duration-300 ${isFullscreen ? "flex flex-col h-screen w-screen" : ""
+          }`}
       >
         <div className="mb-4 flex items-center gap-4">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">Speed</h2>
@@ -195,7 +200,14 @@ export default function Dashboard() {
           </button>
         </div>
         <div className={isFullscreen ? "flex-1 min-h-0" : ""}>
-          <SpeedChart data={speedData} avgDown={avgDown} avgUp={avgUp} hours={hours} fullscreen={isFullscreen} />
+          <SpeedChart
+            data={speedData}
+            avgDown={avgDown}
+            avgUp={avgUp}
+            hours={hours}
+            fullscreen={isFullscreen}
+            yAxisWidth={85}
+          />
         </div>
       </div>
 
@@ -209,7 +221,14 @@ export default function Dashboard() {
           </svg>
         }
       >
-        <UsageChart data={cpuChartData} color="var(--color-cpu)" label="CPU" avg={avgCpu} hours={hours} />
+        <UsageChart
+          data={cpuChartData}
+          color="var(--color-cpu)"
+          label="CPU"
+          avg={avgCpu}
+          hours={hours}
+          yAxisWidth={52}
+        />
       </ChartCard>
 
       {/* Memory Chart */}
@@ -229,7 +248,16 @@ export default function Dashboard() {
           ) : null
         }
       >
-        <UsageChart data={memChartData} color="var(--color-memory)" label="Memory" avg={avgMem} hours={hours} />
+        <UsageChart
+          data={memChartData}
+          color="var(--color-memory)"
+          label="Memory"
+          avg={avgMem}
+          hours={hours}
+          domain={memChartDomain}
+          formatter={formatBytes}
+          yAxisWidth={85}
+        />
       </ChartCard>
 
       {/* Per-Disk Charts */}
@@ -261,7 +289,11 @@ export default function Dashboard() {
             }
             actions={<CapacityBar used={latestDiskUsed} total={disk.total} />}
           >
-            <DiskChart data={disk.data} hours={hours} />
+            <DiskChart
+              data={disk.data}
+              hours={hours}
+              yAxisWidth={{ left: 85, right: 52 }}
+            />
           </ChartCard>
         );
       })}
