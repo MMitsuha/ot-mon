@@ -62,6 +62,9 @@ export default function Dashboard() {
     );
     return [0, Math.max(max, 1)];
   }, [hwData]);
+  const manageHref = selectedDevice
+    ? `/manage/${encodeURIComponent(selectedDevice)}`
+    : null;
 
   return (
     <div className="space-y-6">
@@ -99,6 +102,23 @@ export default function Dashboard() {
             </button>
           ))}
         </div>
+
+        {manageHref ? (
+          <a
+            href={manageHref}
+            className="inline-flex items-center rounded-lg border border-[var(--card-border-hover)] bg-[var(--card-bg)] px-4 py-2 text-sm text-[var(--text-primary)] transition-all duration-200 hover:border-[var(--text-dim)] hover:bg-[#1a1a1a]"
+          >
+            Manage
+          </a>
+        ) : (
+          <button
+            type="button"
+            disabled
+            className="inline-flex cursor-not-allowed items-center rounded-lg border border-[var(--card-border-hover)] bg-[var(--card-bg)] px-4 py-2 text-sm text-[var(--text-dim)] opacity-60"
+          >
+            Manage
+          </button>
+        )}
 
         {isLoading && (
           <span className="text-xs text-[var(--text-dim)]">Loading...</span>
