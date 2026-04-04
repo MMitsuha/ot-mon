@@ -38,7 +38,12 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(
         devices = config.devices.len(),
         poll_interval = config.monitor.poll_interval_secs,
-        daily_time = %config.monitor.daily_relogin_time,
+        daily_scheduler_enabled = config.monitor.daily_relogin_time.is_some(),
+        daily_time = config
+            .monitor
+            .daily_relogin_time
+            .as_deref()
+            .unwrap_or("disabled"),
         "ot-mon 启动"
     );
 

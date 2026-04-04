@@ -1,6 +1,6 @@
 [monitor]
 poll_interval_secs = 60         # 轮询间隔（秒）
-daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)
+daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)，省略该项可禁用每日重拨调度器
 log_level = "info"
 disconnect_threshold = 3        # 连续检测到断线多少次后才触发重拨（防止网络波动）
 

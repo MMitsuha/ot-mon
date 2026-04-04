@@ -90,7 +90,7 @@ volumes:
 ```toml
 [monitor]
 poll_interval_secs = 60         # 轮询间隔（秒）
-daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)
+daily_relogin_time = "04:00"    # 每日重拨时间 (HH:MM)，省略该项可禁用每日重拨调度器
 log_level = "info"
 disconnect_threshold = 3        # 连续检测到断线多少次后才触发重拨（防止网络波动）
 
@@ -115,6 +115,8 @@ dry = true                      # 仅监控，不执行重拨
 name = "设备2"
 ip = "192.168.1.102"
 ```
+
+省略 `monitor.daily_relogin_time` 即可禁用每日重拨调度器。
 
 运行时可指定配置文件路径：
 

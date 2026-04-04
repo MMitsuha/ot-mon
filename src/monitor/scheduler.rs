@@ -17,8 +17,15 @@ pub async fn run_daily_scheduler(
     notify_tx: mpsc::Sender<NotifyMessage>,
     cancel: CancellationToken,
 ) {
+    let Some(time) = config.monitor.daily_relogin_time.as_deref() else {
+        tracing::info!("daily_relogin_time 未配置，每日重拨调度器已禁用");
+        cancel.cancelled().await;
+        tracing::info!("每日重拨调度器已停止");
+        return;
+    };
+
     // 解析 "HH:MM" -> cron "0 MM HH * * *"
-    let cron_expr = match parse_time_to_cron(&config.monitor.daily_relogin_time) {
+    let cron_expr = match parse_time_to_cron(time) {
         Ok(expr) => expr,
         Err(e) => {
             tracing::error!(error = %e, "解析 daily_relogin_time 失败，每日重拨调度器未启动");
@@ -27,7 +34,7 @@ pub async fn run_daily_scheduler(
     };
 
     tracing::info!(
-        time = %config.monitor.daily_relogin_time,
+        time = %time,
         cron = %cron_expr,
         "每日重拨调度器启动"
     );
@@ -115,4 +122,24 @@ fn parse_time_to_cron(time_str: &str) -> anyhow::Result<String> {
     }
     // tokio-cron-scheduler 格式: sec min hour day month day-of-week
     Ok(format!("0 {} {} * * *", minute, hour))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_time_to_cron;
+
+    #[test]
+    fn parse_time_to_cron_accepts_valid_time() {
+        assert_eq!(parse_time_to_cron("04:00").unwrap(), "0 0 4 * * *");
+    }
+
+    #[test]
+    fn parse_time_to_cron_rejects_invalid_time_range() {
+        assert!(parse_time_to_cron("24:00").is_err());
+    }
+
+    #[test]
+    fn parse_time_to_cron_rejects_invalid_format() {
+        assert!(parse_time_to_cron("0400").is_err());
+    }
 }
