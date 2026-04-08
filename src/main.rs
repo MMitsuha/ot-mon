@@ -90,7 +90,6 @@ async fn main() -> anyhow::Result<()> {
         srun.clone(),
         mongo.clone(),
         notify_rx,
-        notify_tx.clone(),
         cancel.clone(),
     ));
 

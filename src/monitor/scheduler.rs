@@ -3,7 +3,7 @@ use crate::api::srun::SrunClient;
 use crate::config::Config;
 use crate::db::mongo::MongoStore;
 use crate::monitor::relogin;
-use crate::notify::telegram::NotifyMessage;
+use crate::notify::events::NotifyMessage;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_cron_scheduler::{Job, JobScheduler};

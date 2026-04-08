@@ -1,11 +1,58 @@
 use crate::api::types::PppoeStatusResponse;
 use crate::monitor::relogin::ReloginSummary;
+use std::time::Duration;
 
 pub fn format_disconnect(device_name: &str, line_count: usize, details: &str) -> String {
     format!(
         "🔴 <b>{device_name}</b>: 检测到 {line_count} 条线路断线\n\
          {details}"
     )
+}
+
+pub fn format_device_unreachable(device_name: &str, error: &str) -> String {
+    format!("🔴 <b>{device_name}</b>: 设备不可达\n{error}")
+}
+
+pub fn format_device_recovered(device_name: &str, outage: Duration) -> String {
+    format!(
+        "🟢 <b>{device_name}</b>: 设备已恢复 (断连 {})",
+        format_duration(outage)
+    )
+}
+
+/// Render a duration as `5s` / `2m30s` / `1h5m` / `1d2h` etc.
+/// Shows the two most significant units; sub-second values round up to `1s`.
+pub fn format_duration(d: Duration) -> String {
+    let total = d.as_secs();
+    if total == 0 {
+        return "1s".to_string();
+    }
+    let days = total / 86_400;
+    let hours = (total % 86_400) / 3_600;
+    let minutes = (total % 3_600) / 60;
+    let seconds = total % 60;
+
+    if days > 0 {
+        if hours > 0 {
+            format!("{days}d{hours}h")
+        } else {
+            format!("{days}d")
+        }
+    } else if hours > 0 {
+        if minutes > 0 {
+            format!("{hours}h{minutes}m")
+        } else {
+            format!("{hours}h")
+        }
+    } else if minutes > 0 {
+        if seconds > 0 {
+            format!("{minutes}m{seconds}s")
+        } else {
+            format!("{minutes}m")
+        }
+    } else {
+        format!("{seconds}s")
+    }
 }
 
 pub fn format_relogin_summary(s: &ReloginSummary) -> String {
@@ -118,6 +165,41 @@ pub fn format_status_report(statuses: &[(String, PppoeStatusResponse)]) -> Vec<S
     reports
 }
 
-pub fn format_error(context: &str, error: &str) -> String {
-    format!("⚠️ <b>错误</b>: {context}\n{error}")
+#[cfg(test)]
+mod tests {
+    use super::format_duration;
+    use std::time::Duration;
+
+    #[test]
+    fn format_duration_sub_second() {
+        assert_eq!(format_duration(Duration::from_millis(500)), "1s");
+    }
+
+    #[test]
+    fn format_duration_seconds() {
+        assert_eq!(format_duration(Duration::from_secs(45)), "45s");
+    }
+
+    #[test]
+    fn format_duration_minutes_seconds() {
+        assert_eq!(format_duration(Duration::from_secs(2 * 60 + 30)), "2m30s");
+    }
+
+    #[test]
+    fn format_duration_hours_minutes() {
+        assert_eq!(format_duration(Duration::from_secs(3600 + 5 * 60)), "1h5m");
+    }
+
+    #[test]
+    fn format_duration_exact_hours() {
+        assert_eq!(format_duration(Duration::from_secs(2 * 3600)), "2h");
+    }
+
+    #[test]
+    fn format_duration_days_hours() {
+        assert_eq!(
+            format_duration(Duration::from_secs(86_400 + 2 * 3600)),
+            "1d2h"
+        );
+    }
 }
