@@ -71,3 +71,9 @@ export interface PerDiskSeries {
   total: number;
   data: DiskDataPoint[];
 }
+
+export interface YesterdayTotal {
+  downBytes: number;
+  upBytes: number;
+  sampleCount: number;
+}

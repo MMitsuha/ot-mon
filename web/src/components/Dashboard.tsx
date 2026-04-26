@@ -20,6 +20,7 @@ export default function Dashboard() {
     speedData,
     hwData,
     diskData,
+    yesterdayTotal,
     isLoading,
   } = useDashboardData();
 
@@ -131,11 +132,21 @@ export default function Dashboard() {
           label="Download"
           value={latest ? formatSpeed(latest.totalDownSpeed) : "-"}
           sub={speedData.length > 0 ? `Avg ${formatSpeed(avgDown)}` : undefined}
+          note={
+            yesterdayTotal && yesterdayTotal.sampleCount > 0
+              ? `Yesterday ${formatBytes(yesterdayTotal.downBytes)}`
+              : undefined
+          }
         />
         <StatCard
           label="Upload"
           value={latest ? formatSpeed(latest.totalUpSpeed) : "-"}
           sub={speedData.length > 0 ? `Avg ${formatSpeed(avgUp)}` : undefined}
+          note={
+            yesterdayTotal && yesterdayTotal.sampleCount > 0
+              ? `Yesterday ${formatBytes(yesterdayTotal.upBytes)}`
+              : undefined
+          }
         />
         <StatCard
           label="Lines"

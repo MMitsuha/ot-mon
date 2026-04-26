@@ -2,10 +2,12 @@ export default function StatCard({
   label,
   value,
   sub,
+  note,
 }: {
   label: string;
   value: string;
   sub?: string;
+  note?: string;
 }) {
   return (
     <div className="rounded-xl border border-[var(--card-border)] bg-[var(--card-bg)] p-5">
@@ -13,7 +15,15 @@ export default function StatCard({
       <p className="mt-1 text-2xl font-semibold text-[var(--text-primary)]">
         {value}
       </p>
-      {sub && <p className="mt-1 text-xs text-[var(--text-muted)]">{sub}</p>}
+      {(sub || note) && (
+        <p className="mt-1 text-xs text-[var(--text-muted)]">
+          {sub}
+          {sub && note && (
+            <span className="mx-1.5 text-[var(--text-dim)]">·</span>
+          )}
+          {note}
+        </p>
+      )}
     </div>
   );
 }

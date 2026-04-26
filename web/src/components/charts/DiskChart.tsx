@@ -42,6 +42,7 @@ interface ChartPoint {
   wAwait: number | null;
   svctm: number | null;
   util: number | null;
+  usedPct: number | null;
 }
 
 const SERIES = [
@@ -93,6 +94,14 @@ const SERIES = [
     type: "line",
     defaultOn: false,
   },
+  {
+    key: "usedPct",
+    label: "Space %",
+    color: "#ec4899",
+    axis: "right",
+    type: "line",
+    defaultOn: false,
+  },
 ] as const;
 
 function tooltipFormatter(
@@ -103,7 +112,8 @@ function tooltipFormatter(
   if (!series) return null;
   const label = series.label;
   if (series.axis === "left") return [formatKbps(value), label];
-  if (series.key === "util") return [formatPercent(value), label];
+  if (series.key === "util" || series.key === "usedPct")
+    return [formatPercent(value), label];
   return [formatMs(value), label];
 }
 
@@ -140,6 +150,7 @@ export default function DiskChart({ data, hours, yAxisWidth }: DiskChartProps) {
       wAwait: d.wAwait,
       svctm: d.svctm,
       util: d.util,
+      usedPct: d.total > 0 ? (d.used / d.total) * 100 : null,
     }));
 
     const timestamps = raw.map((r) => r.ts);
@@ -159,6 +170,7 @@ export default function DiskChart({ data, hours, yAxisWidth }: DiskChartProps) {
           wAwait: null,
           svctm: null,
           util: null,
+          usedPct: null,
         });
       }
       points.push(raw[i]);
@@ -180,7 +192,15 @@ export default function DiskChart({ data, hours, yAxisWidth }: DiskChartProps) {
 
   const averages = useMemo(() => {
     if (data.length === 0)
-      return { rkbs: 0, wkbs: 0, rAwait: 0, wAwait: 0, svctm: 0, util: 0 };
+      return {
+        rkbs: 0,
+        wkbs: 0,
+        rAwait: 0,
+        wAwait: 0,
+        svctm: 0,
+        util: 0,
+        usedPct: 0,
+      };
     const n = data.length;
     return {
       rkbs: data.reduce((s, d) => s + d.rkbs, 0) / n,
@@ -189,6 +209,11 @@ export default function DiskChart({ data, hours, yAxisWidth }: DiskChartProps) {
       wAwait: data.reduce((s, d) => s + d.wAwait, 0) / n,
       svctm: data.reduce((s, d) => s + d.svctm, 0) / n,
       util: data.reduce((s, d) => s + d.util, 0) / n,
+      usedPct:
+        data.reduce(
+          (s, d) => s + (d.total > 0 ? (d.used / d.total) * 100 : 0),
+          0,
+        ) / n,
     };
   }, [data]);
 
@@ -434,6 +459,21 @@ export default function DiskChart({ data, hours, yAxisWidth }: DiskChartProps) {
               }}
             />
           )}
+          {!hiddenSeries.has("usedPct") && averages.usedPct > 0 && (
+            <ReferenceLine
+              yAxisId="right2"
+              y={averages.usedPct}
+              stroke="#ec4899"
+              strokeDasharray="6 4"
+              strokeOpacity={0.5}
+              label={{
+                value: `Avg ${formatPercent(averages.usedPct)}`,
+                fill: "#ec4899",
+                fontSize: 10,
+                position: "insideBottomRight",
+              }}
+            />
+          )}
           {/* Default ON: read/write throughput */}
           <Area
             yAxisId="left"
@@ -500,6 +540,16 @@ export default function DiskChart({ data, hours, yAxisWidth }: DiskChartProps) {
             strokeWidth={1.5}
             dot={false}
             hide={hiddenSeries.has("util")}
+          />
+          <Line
+            yAxisId="right2"
+            type="monotone"
+            dataKey="usedPct"
+            name="Space %"
+            stroke="#ec4899"
+            strokeWidth={1.5}
+            dot={false}
+            hide={hiddenSeries.has("usedPct")}
           />
           <Line
             yAxisId="right2"
