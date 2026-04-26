@@ -1,0 +1,29 @@
+services:
+  daemon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${CI_REGISTRY_IMAGE:-ot-mon}/daemon:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    volumes:
+      - ./config.toml:/etc/ot-mon/config.toml:ro
+    networks:
+      - ot-mon
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    image: ${CI_REGISTRY_IMAGE:-ot-mon}/web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      MONGODB_URI: ${MONGODB_URI:?MONGODB_URI must be set}
+      MONGODB_DATABASE: ${MONGODB_DATABASE:-ot_mon}
+    networks:
+      - ot-mon
+
+networks:
+  ot-mon:
+    driver: bridge

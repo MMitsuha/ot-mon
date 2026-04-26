@@ -1,0 +1,140 @@
+# GitLab CI for ot-mon. Builds the Rust daemon and Next.js web dashboard,
+# pushes both images to the project registry, then deploys via docker compose.
+#
+# Required CI/CD variables (Settings -> CI/CD -> Variables):
+#   OT_MON_CONFIG_FILE  (File)    full TOML config for the daemon (replaces config.toml).
+#                                  Must contain [mongodb].uri pointing at the external Mongo.
+#   MONGODB_URI         (Variable) Mongo URI exposed to the web container (required)
+#   MONGODB_DATABASE    (Variable) Mongo database name (default: ot_mon)
+#   WEB_PORT            (Variable) Optional host port for the web UI (default: 3000)
+#
+# CI_REGISTRY*, CI_COMMIT_*, CI_PROJECT_DIR are provided by GitLab.
+
+stages:
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  CARGO_HOME: "$CI_PROJECT_DIR/.cargo"
+  CARGO_TERM_COLOR: "never"
+  RUSTFLAGS: "-D warnings"
+
+.rust-base:
+  image: rust:1.89-bookworm
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends pkg-config libssl-dev
+    - rustup component add rustfmt clippy
+  cache:
+    key: "${CI_COMMIT_REF_SLUG}-cargo"
+    paths:
+      - .cargo/
+      - target/
+
+rust-fmt:
+  extends: .rust-base
+  stage: lint
+  script:
+    - cargo fmt --all -- --check
+
+rust-clippy:
+  extends: .rust-base
+  stage: lint
+  script:
+    - cargo clippy --all-targets -- -D warnings
+
+rust-check:
+  extends: .rust-base
+  stage: test
+  script:
+    - cargo check --all-targets
+
+.ui-base:
+  image: oven/bun:1
+  cache:
+    key:
+      files:
+        - web/bun.lock
+    paths:
+      - web/node_modules/
+
+ui-lint:
+  extends: .ui-base
+  stage: lint
+  script:
+    - cd web && bun install --frozen-lockfile && bun run lint
+
+ui-typecheck:
+  extends: .ui-base
+  stage: test
+  script:
+    - cd web && bun install --frozen-lockfile && bunx tsc --noEmit
+
+docker-daemon:
+  image: docker:27
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+  script:
+    - docker build
+      -t "$CI_REGISTRY_IMAGE/daemon:$CI_COMMIT_SHORT_SHA"
+      -t "$CI_REGISTRY_IMAGE/daemon:latest" .
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker push "$CI_REGISTRY_IMAGE/daemon:$CI_COMMIT_SHORT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/daemon:latest"
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "$CI_REGISTRY_IMAGE/daemon:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE/daemon:$CI_COMMIT_TAG"
+        docker push "$CI_REGISTRY_IMAGE/daemon:$CI_COMMIT_TAG"
+      fi
+  tags:
+    - docker
+
+docker-web:
+  image: docker:27
+  stage: build
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+  script:
+    - docker build
+      -t "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_SHORT_SHA"
+      -t "$CI_REGISTRY_IMAGE/web:latest" ./web
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker push "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_SHORT_SHA"
+    - docker push "$CI_REGISTRY_IMAGE/web:latest"
+    - |
+      if [ -n "$CI_COMMIT_TAG" ]; then
+        docker tag "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_SHORT_SHA" "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_TAG"
+        docker push "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_TAG"
+      fi
+  tags:
+    - docker
+
+deploy:
+  stage: deploy
+  needs: [ "docker-daemon", "docker-web" ]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG
+  environment:
+    name: production
+  script:
+    # Backend config: materialize from the OT_MON_CONFIG_FILE file-type variable.
+    - cp "$OT_MON_CONFIG_FILE" config.toml
+    # docker-compose env: image refs + frontend Mongo settings driven by CI vars.
+    - |
+      cat > .env <<EOF
+      CI_REGISTRY_IMAGE=$CI_REGISTRY_IMAGE
+      IMAGE_TAG=$CI_COMMIT_SHORT_SHA
+      MONGODB_URI=$MONGODB_URI
+      MONGODB_DATABASE=${MONGODB_DATABASE:-ot_mon}
+      WEB_PORT=${WEB_PORT:-3000}
+      EOF
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker compose pull
+    - docker compose up -d
+  tags:
+    - deploy
