@@ -328,7 +328,7 @@ impl NetworkLineConfig {
             qinq: d.qinq.clone(),
             bandwidth: d.bandwidth,
             bandlimit: d.bandlimit,
-            maxinterval: d.maxinterval,
+            maxinterval: 0,
             dialnumber: d.dialnumber,
             nic: d.nic.clone(),
             macaddr: d.macaddr.clone(),
