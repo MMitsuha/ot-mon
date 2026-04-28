@@ -1,6 +1,8 @@
 use crate::api::device::DeviceClient;
 use crate::api::srun::SrunClient;
-use crate::api::types::{NetworkLineConfig, PppoeStatusResponse};
+use crate::api::types::{
+    NetworkLineConfig, NetworkLineEntry, NetworkLineMinimal, PppoeStatusResponse,
+};
 use crate::config::DeviceConfig;
 use crate::crypto;
 use crate::db::models::ReloginEventDoc;
@@ -79,33 +81,28 @@ pub async fn relogin_disconnected(
 
     let failed_logins = disconnected_count - new_macs.len();
 
-    // 构建配置: 在线保持，断线替换
+    // 构建条目: 断线且分配到新 MAC 的线路使用精简格式 (设备据此重置该线路);
+    // 其余线路 (在线 / 没拿到新 MAC 的断线) 用完整格式以保留原配置。
+    // 与 text2.json (修改特定线路) 的格式一致。
     let mut mac_iter = new_macs.iter();
-    let _nic = status
-        .multidial
-        .first()
-        .map(|d| d.nic.as_str())
-        .unwrap_or("eth1");
-
-    let configs: Vec<NetworkLineConfig> = status
+    let entries: Vec<NetworkLineEntry> = status
         .multidial
         .iter()
         .map(|d| {
             if !d.is_connected() && !d.macaddr.is_empty() {
                 if let Some(new_mac) = mac_iter.next() {
-                    NetworkLineConfig::from_dial_status(d, Some(new_mac))
+                    NetworkLineMinimal::new(&d.nic, new_mac).into()
                 } else {
-                    // 没有足够的新 MAC，保持原样
-                    NetworkLineConfig::from_dial_status(d, None)
+                    NetworkLineConfig::from_dial_status(d).into()
                 }
             } else {
-                NetworkLineConfig::from_dial_status(d, None)
+                NetworkLineConfig::from_dial_status(d).into()
             }
         })
         .collect();
 
     // 加密并上传
-    let uploaded = upload_config(device, device_client, &configs).await;
+    let uploaded = upload_config(device, device_client, &entries).await;
 
     // 记录事件
     for mac in &new_macs {
@@ -200,20 +197,20 @@ pub async fn relogin_all(
 
     let failed_logins = total - new_macs.len();
 
-    // 构建全新配置
+    // 构建全新配置: 全部条目使用精简格式 (与 text.json "上传全新配置" 一致)
     let nic = status
         .multidial
         .first()
         .map(|d| d.nic.as_str())
         .unwrap_or("eth1");
 
-    let configs: Vec<NetworkLineConfig> = new_macs
+    let entries: Vec<NetworkLineEntry> = new_macs
         .iter()
-        .map(|mac| NetworkLineConfig::new_dhcp(nic, mac))
+        .map(|mac| NetworkLineMinimal::new(nic, mac).into())
         .collect();
 
     // 加密并上传
-    let uploaded = upload_config(device, device_client, &configs).await;
+    let uploaded = upload_config(device, device_client, &entries).await;
 
     // 记录事件
     for mac in &new_macs {
@@ -247,12 +244,12 @@ pub async fn relogin_all(
 async fn upload_config(
     device: &DeviceConfig,
     device_client: &DeviceClient,
-    configs: &[NetworkLineConfig],
+    entries: &[NetworkLineEntry],
 ) -> crate::error::Result<()> {
-    let encrypted = crypto::encrypt_request(configs)?;
+    let encrypted = crypto::encrypt_request(entries)?;
     device_client
         .set_network_config(&device.ip, &encrypted)
         .await?;
-    tracing::info!(device = %device.name, lines = configs.len(), "配置已上传");
+    tracing::info!(device = %device.name, lines = entries.len(), "配置已上传");
     Ok(())
 }

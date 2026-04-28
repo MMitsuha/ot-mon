@@ -5,7 +5,7 @@ use rand::Rng;
 use rsa::{Oaep, RsaPublicKey, pkcs8::DecodePublicKey};
 use sha1::Sha1;
 
-use crate::api::types::{EncryptedRequest, NetworkLineConfig};
+use crate::api::types::{EncryptedRequest, NetworkLineEntry};
 use crate::error::{OtMonError, Result};
 
 const RSA_PUBLIC_KEY_PEM: &str = "-----BEGIN PUBLIC KEY-----
@@ -109,11 +109,11 @@ fn generate_sign(params: &[(&str, &str)]) -> String {
 }
 
 /// 加密完整的 API 请求
-pub fn encrypt_request(configs: &[NetworkLineConfig]) -> Result<EncryptedRequest> {
+pub fn encrypt_request(entries: &[NetworkLineEntry]) -> Result<EncryptedRequest> {
     let passphrase = random_passphrase();
 
     // JSON 序列化（紧凑格式，与 Python separators=(",",":") 一致）
-    let plaintext = serde_json::to_string(configs)?;
+    let plaintext = serde_json::to_string(entries)?;
 
     // AES 加密
     let account_info = aes_encrypt_cryptojs(&plaintext, &passphrase);

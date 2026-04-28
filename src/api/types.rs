@@ -196,7 +196,57 @@ mod srun_result_format {
     }
 }
 
-// ---- 网络配置上传 (plain_text.json 格式) ----
+// ---- 网络配置上传 ----
+//
+// 设备 set_dhcp_conf 接口对每条线路接受两种条目格式:
+//   * 精简 (Minimal): 仅 {vlanid, nic, macaddr, qinq} —— 用于"上传全新配置"或
+//     "修改某条线路 MAC"。被这种条目覆盖的线路会按设备默认值重建。
+//   * 完整 (Full):    含 32 个字段 —— 用于保留某条线路当前的全部配置。
+//
+// 三种业务场景:
+//   * 全量重拨 (relogin_all)            -> 全部条目用 Minimal (= text.json)
+//   * 断线重拨 (relogin_disconnected)   -> 修改的线路用 Minimal,其余 Full (= text2.json)
+//   * 无修改保存                         -> 全部条目用 Full (= text1.json,本程序不主动产生)
+
+/// 精简条目: 仅 vlanid / nic / macaddr / qinq, 字段顺序需与设备协议一致
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NetworkLineMinimal {
+    pub vlanid: i32,
+    pub nic: String,
+    pub macaddr: String,
+    pub qinq: String,
+}
+
+impl NetworkLineMinimal {
+    pub fn new(nic: &str, macaddr: &str) -> Self {
+        Self {
+            vlanid: 0,
+            nic: nic.to_string(),
+            macaddr: macaddr.to_string(),
+            qinq: String::new(),
+        }
+    }
+}
+
+/// 一条线路条目: 精简或完整
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum NetworkLineEntry {
+    Minimal(NetworkLineMinimal),
+    Full(Box<NetworkLineConfig>),
+}
+
+impl From<NetworkLineMinimal> for NetworkLineEntry {
+    fn from(v: NetworkLineMinimal) -> Self {
+        NetworkLineEntry::Minimal(v)
+    }
+}
+
+impl From<NetworkLineConfig> for NetworkLineEntry {
+    fn from(v: NetworkLineConfig) -> Self {
+        NetworkLineEntry::Full(Box::new(v))
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkLineConfig {
@@ -265,8 +315,8 @@ pub struct NetworkLineConfig {
 }
 
 impl NetworkLineConfig {
-    /// 从现有 DialStatus 构建，可选替换 MAC
-    pub fn from_dial_status(d: &DialStatus, new_mac: Option<&str>) -> Self {
+    /// 从现有 DialStatus 构建保持原貌的完整条目 (用于 relogin_disconnected 中未变动的线路)
+    pub fn from_dial_status(d: &DialStatus) -> Self {
         Self {
             tag: String::new(),
             proto: d.proto.clone(),
@@ -281,7 +331,7 @@ impl NetworkLineConfig {
             maxinterval: d.maxinterval,
             dialnumber: d.dialnumber,
             nic: d.nic.clone(),
-            macaddr: new_mac.unwrap_or(&d.macaddr).to_string(),
+            macaddr: d.macaddr.clone(),
             ipaddr: String::new(),
             netmask: String::new(),
             gateway: String::new(),
@@ -299,47 +349,7 @@ impl NetworkLineConfig {
             vtepnetmask: String::new(),
             vni: 0,
             vport: 0,
-            modifiedtime: new_mac
-                .map(|_| chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string())
-                .unwrap_or_else(|| d.modifiedtime.clone()),
-        }
-    }
-
-    /// 构建默认 DHCP 线路
-    pub fn new_dhcp(nic: &str, macaddr: &str) -> Self {
-        Self {
-            tag: String::new(),
-            proto: "dhcp".to_string(),
-            username: String::new(),
-            password: String::new(),
-            acname: String::new(),
-            servicename: String::new(),
-            vlanid: 0,
-            qinq: String::new(),
-            bandwidth: 0,
-            bandlimit: 0,
-            maxinterval: 0,
-            dialnumber: 0,
-            nic: nic.to_string(),
-            macaddr: macaddr.to_string(),
-            ipaddr: String::new(),
-            netmask: String::new(),
-            gateway: String::new(),
-            dns1: String::new(),
-            dns2: String::new(),
-            ipaddr6: String::new(),
-            gateway6: String::new(),
-            prefixlen6: 0,
-            disable: false,
-            delaytime: 0,
-            nodelay: false,
-            portid: 0,
-            remotevtep: String::new(),
-            vtepipaddr: String::new(),
-            vtepnetmask: String::new(),
-            vni: 0,
-            vport: 0,
-            modifiedtime: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            modifiedtime: d.modifiedtime.clone(),
         }
     }
 }
