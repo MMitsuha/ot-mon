@@ -73,6 +73,11 @@ pub struct DeviceConfig {
     pub ip: String,
     #[serde(default = "default_dry")]
     pub dry: bool,
+    /// 该设备拨号时让 srun-auto-dial 读取的用户凭据 JSON 文件路径
+    /// (例如电信线路用 `userinfo-dxdb.json`、联通用 `userinfo-ltdb.json`)。
+    /// 省略时 srun-auto-dial 回落到自身配置或 `userinfo.json`。
+    #[serde(default)]
+    pub userinfo_path: Option<String>,
 }
 
 fn default_dry() -> bool {

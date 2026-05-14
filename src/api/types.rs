@@ -159,6 +159,8 @@ pub struct SrunLoginData {
 pub struct SrunRandomLoginRequest {
     pub parent_interface: String,
     pub count: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub userinfo_path: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

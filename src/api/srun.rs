@@ -51,11 +51,16 @@ impl SrunClient {
     }
 
     /// 批量随机 MAC 登录
-    pub async fn login_random(&self, count: u32) -> Result<Vec<SrunRandomLoginResult>> {
+    pub async fn login_random(
+        &self,
+        count: u32,
+        userinfo_path: Option<&str>,
+    ) -> Result<Vec<SrunRandomLoginResult>> {
         let url = format!("{}/api/login/random", self.base_url);
         let req = SrunRandomLoginRequest {
             parent_interface: self.parent_interface.clone(),
             count,
+            userinfo_path: userinfo_path.map(|s| s.to_string()),
         };
         let resp: SrunApiResponse<Vec<SrunRandomLoginResult>> = self
             .client
@@ -80,6 +85,7 @@ impl SrunClient {
         &self,
         needed: u32,
         max_retries: u32,
+        userinfo_path: Option<&str>,
     ) -> Result<Vec<String>> {
         let mut successful_macs = Vec::new();
         let mut remaining = needed;
@@ -93,7 +99,7 @@ impl SrunClient {
                 tokio::time::sleep(std::time::Duration::from_secs(5)).await;
             }
 
-            let results = self.login_random(remaining).await?;
+            let results = self.login_random(remaining, userinfo_path).await?;
             for r in &results {
                 if r.result.is_ok() {
                     successful_macs.push(r.mac.clone());

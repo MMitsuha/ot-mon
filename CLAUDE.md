@@ -94,6 +94,7 @@ Copy `config.example.toml` to `config.toml`. Sections: `[monitor]`, `[srun]`, `[
 Key options:
 - `monitor.disconnect_threshold` — consecutive disconnect polls before triggering relogin (default: 1)
 - `devices[].dry` — if `true`, device is monitor-only (no relogin operations)
+- `devices[].userinfo_path` — optional JSON path that srun-auto-dial should read credentials from for this device (sent as `userinfo_path` on `/api/login/random`). Per-line files (telecom / unicom) must not be mixed; omit to fall back to srun-auto-dial's default.
 
 ## Rust Edition
 

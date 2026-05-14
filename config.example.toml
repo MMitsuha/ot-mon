@@ -24,3 +24,11 @@ dry = true   # 该设备仅用于测试，不执行实际的 relogin 操作
 [[devices]]
 name = "设备2"
 ip = "192.168.1.102"
+# 该设备拨号时让 srun-auto-dial 读取的凭据 JSON 文件。
+# 不同线路 (电信 / 联通) 各自一份，禁止混用；省略时由 srun-auto-dial 用自身默认。
+userinfo_path = "/etc/srun/userinfo-dxdb.json"
+
+[[devices]]
+name = "设备3"
+ip = "192.168.1.103"
+userinfo_path = "/etc/srun/userinfo-ltdb.json"

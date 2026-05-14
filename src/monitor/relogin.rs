@@ -60,7 +60,11 @@ pub async fn relogin_disconnected(
 
     // 批量登录获取新 MAC
     let new_macs = match srun
-        .login_random_until_success(disconnected_count as u32, 3)
+        .login_random_until_success(
+            disconnected_count as u32,
+            3,
+            device.userinfo_path.as_deref(),
+        )
         .await
     {
         Ok(macs) => macs,
@@ -178,7 +182,10 @@ pub async fn relogin_all(
     );
 
     // 批量登录获取 total 个新 MAC
-    let new_macs = match srun.login_random_until_success(total as u32, 3).await {
+    let new_macs = match srun
+        .login_random_until_success(total as u32, 3, device.userinfo_path.as_deref())
+        .await
+    {
         Ok(macs) => macs,
         Err(e) => {
             let msg = format!("批量登录失败: {e}");
